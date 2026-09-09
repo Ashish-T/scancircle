@@ -3,10 +3,11 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const links = await prisma.businessLink.findMany({
-      where: { business_id: params.id },
+      where: { business_id: id },
       orderBy: { display_order: 'asc' },
     })
     return NextResponse.json({ links })
@@ -15,8 +16,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const { type, label, url } = await request.json()
 
     if (!type || !label || !url) {
@@ -25,7 +27,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const newLink = await prisma.businessLink.create({
       data: {
-        business_id: params.id,
+        business_id: id,
         type,
         label,
         url,
