@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                String         @id @default(uuid())
+  email             String         @unique
+  email_verified_at DateTime?
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  businesses        BusinessUser[]
+}
+
+model OtpCode {
+  id            String    @id @default(uuid())
+  email         String
+  otp_hash      String
+  expires_at    DateTime
+  attempt_count Int       @default(0)
+  used_at       DateTime?
+  created_at    DateTime  @default(now())
+}
+
+model Business {
+  id                String         @id @default(uuid())
+  google_place_id   String         @unique
+  name              String
+  formatted_address String?
+  latitude          Float?
+  longitude         Float?
+  phone             String?
+  website           String?
+  logo_url          String?
+  status            String         @default("ACTIVE")
+  trial_started_at  DateTime?
+  trial_ends_at     DateTime?
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  
+  users             BusinessUser[]
+  links             BusinessLink[]
+  qr_codes          QrCode[]
+}
+
+model BusinessUser {
+  id          String   @id @default(uuid())
+  business_id String
+  user_id     String
+  role        String
+  created_at  DateTime @default(now())
+  
+  business    Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model BusinessLink {
+  id            String   @id @default(uuid())
+  business_id   String
+  type          String
+  label         String
+  url           String
+  enabled       Boolean  @default(true)
+  display_order Int      @default(0)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  business      Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+}
+
+model QrCode {
+  id               String   @id @default(uuid())
+  business_id      String
+  short_code       String   @unique
+  status           String   @default("ACTIVE")
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  business         Business @relation(fields: [business_id], references: [id], onDelete: Cascade)
+}
