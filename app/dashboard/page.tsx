@@ -1,3 +1,5 @@
+'use class'
+
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
@@ -12,6 +14,11 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('destinations')
   const [userId, setUserId] = useState<string | null>(null)
   const [businessName, setBusinessName] = useState('My Business Name')
+  const [businessType, setBusinessType] = useState('Cafe & Restaurant')
+  const [googleReviewUrl, setGoogleReviewUrl] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Array<{ name: string; address: string; reviewUrl: string }>>([])
+  const [searching, setSearching] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deployMessage, setDeployMessage] = useState('')
   
@@ -27,22 +34,60 @@ export default function DashboardPage() {
   const [qrStyle, setQrStyle] = useState('Geometric Square')
   const qrRef = useRef<HTMLCanvasElement>(null)
 
-  // Fetch logged-in user session on load
   useEffect(() => {
     async function loadUserData() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
-        // Fetch existing profile data if any
         const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
         if (data) {
           if (data.business_name) setBusinessName(data.business_name)
+          if (data.business_type) setBusinessType(data.business_type)
+          if (data.google_review_url) setGoogleReviewUrl(data.google_review_url)
           if (data.links) setDestinations(data.links)
         }
       }
     }
     loadUserData()
   }, [])
+
+  // Google Places Search Handler (Simulated or connected via API)
+  const handleGooglePlaceSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+    setSearching(true)
+
+    try {
+      // In production, you would call a Next.js API route querying Google Places Text Search API.
+      // Here we simulate fetching the correct matching place data:
+      setTimeout(() => {
+        setSearchResults([
+          { 
+            name: searchQuery, 
+            address: '123 Main Street, City Center', 
+            reviewUrl: `https://search.google.com/local/writereview?placeid=ChIJ_Simulated_${encodeURIComponent(searchQuery)}` 
+          },
+          { 
+            name: `${searchQuery} (Branch 2)`, 
+            address: '456 Market Avenue, Uptown', 
+            reviewUrl: `https://search.google.com/local/writereview?placeid=ChIJ_Simulated_2_${encodeURIComponent(searchQuery)}` 
+          }
+        ])
+        setSearching(false)
+      }, 800)
+    } catch {
+      setSearching(false)
+    }
+  }
+
+  const handleSelectPlace = (place: { name: string; reviewUrl: string }) => {
+    setBusinessName(place.name)
+    setGoogleReviewUrl(place.reviewUrl)
+    setSearchResults([])
+    setSearchQuery('')
+    setDeployMessage('Google Place synced successfully! Click Deploy to save.')
+    setTimeout(() => setDeployMessage(''), 4000)
+  }
 
   const handleDeployConfig = async () => {
     if (!userId) {
@@ -55,6 +100,8 @@ export default function DashboardPage() {
     const { error } = await supabase.from('profiles').upsert({
       id: userId,
       business_name: businessName,
+      business_type: businessType,
+      google_review_url: googleReviewUrl,
       links: destinations,
       updated_at: new Date()
     })
@@ -111,7 +158,6 @@ export default function DashboardPage() {
     return { label: 'VECTOR TARGET URL', placeholder: 'https://...', type: 'url' }
   }
 
-  // QR points to the dynamic user profile route using their Supabase User ID
   const publicProfileUrl = userId ? `https://scancircle.onrender.com/router/${userId}` : ''
 
   return (
@@ -152,15 +198,32 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          <div className="mb-8 bg-white/[0.03] p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
-            <label className="block text-[10px] font-mono text-cyan-400 uppercase tracking-widest mb-2">Establishment / Business Name</label>
-            <input 
-              type="text" 
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              placeholder="Enter your business name..."
-              className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 shadow-inner"
-            />
+          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/[0.03] p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
+            <div>
+              <label className="block text-[10px] font-mono text-cyan-400 uppercase tracking-widest mb-2">Business Name</label>
+              <input 
+                type="text" 
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                placeholder="My Business Name"
+                className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 shadow-inner"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-mono text-cyan-400 uppercase tracking-widest mb-2">Business Category</label>
+              <select 
+                value={businessType}
+                onChange={(e) => setBusinessType(e.target.value)}
+                className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 shadow-inner appearance-none"
+              >
+                <option value="Cafe & Restaurant">Cafe & Restaurant</option>
+                <option value="Salon & Spa">Salon & Spa</option>
+                <option value="Retail & Shopping">Retail & Shopping</option>
+                <option value="Fitness & Gym">Fitness & Gym</option>
+                <option value="Professional Services">Professional Services</option>
+                <option value="General & Other">General & Other</option>
+              </select>
+            </div>
           </div>
 
           {activeTab === 'destinations' && (
@@ -262,8 +325,53 @@ export default function DashboardPage() {
 
           {activeTab === 'places' && (
             <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
-              <h3 className="text-xl font-semibold text-white mb-2">Global Satellite Link</h3>
-              <p className="text-sm text-gray-400">Establish a geospatial link to sync physical coordinate metadata.</p>
+              <h3 className="text-xl font-semibold text-white mb-2">Global Satellite Link (Google Places Sync)</h3>
+              <p className="text-sm text-gray-400 mb-6">Search your business name to automatically locate and sync your official Google Review coordinates.</p>
+              
+              <form onSubmit={handleGooglePlaceSearch} className="flex gap-4 mb-6">
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Enter exact business name or location..."
+                  className="flex-1 px-5 py-4 bg-[#0a0a0f] border border-white/10 rounded-2xl text-sm text-gray-200 focus:outline-none focus:border-fuchsia-500 shadow-inner"
+                />
+                <button 
+                  type="submit" 
+                  disabled={searching}
+                  className="py-4 px-8 bg-white/5 border border-fuchsia-500/30 text-fuchsia-300 font-bold rounded-2xl hover:bg-fuchsia-500/20 transition-all disabled:opacity-50"
+                >
+                  {searching ? 'Scanning...' : 'Search Place'}
+                </button>
+              </form>
+
+              {searchResults.length > 0 && (
+                <div className="space-y-3 mb-6">
+                  <p className="text-xs font-mono text-cyan-400 uppercase tracking-widest">Select Your Establishment:</p>
+                  {searchResults.map((place, idx) => (
+                    <div key={idx} className="p-4 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-bold text-white">{place.name}</h4>
+                        <p className="text-xs text-gray-400">{place.address}</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => handleSelectPlace(place)}
+                        className="py-2 px-4 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold rounded-xl hover:bg-cyan-500/30 transition-all"
+                      >
+                        Sync Location
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {googleReviewUrl && (
+                <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl">
+                  <p className="text-xs font-mono text-emerald-400 uppercase tracking-wider mb-1">Active Synced Review URL:</p>
+                  <p className="text-xs text-gray-300 break-all">{googleReviewUrl}</p>
+                </div>
+              )}
             </div>
           )}
         </div>

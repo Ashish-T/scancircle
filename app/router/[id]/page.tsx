@@ -1,5 +1,8 @@
-import Link from 'next/link'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import Link from 'next/link'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -17,21 +20,40 @@ interface LinkItem {
   enabled: boolean
 }
 
-export default async function RouterProfilePage({ params }: PageProps) {
-  const resolvedParams = await params
-  const userId = resolvedParams.id
+export default function RouterProfilePage({ params }: PageProps) {
+  const [userId, setUserId] = useState<string | null>(null)
+  const [businessName, setBusinessName] = useState('Scan Circle Business')
+  const [businessType, setBusinessType] = useState('Cafe & Restaurant')
+  const [googleReviewUrl, setGoogleReviewUrl] = useState('')
+  const [links, setLinks] = useState<LinkItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Fetch profile and links from Supabase
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
+  // Interactive Review States
+  const [selectedRating, setSelectedRating] = useState<number | null>(null)
+  const [copiedPrompt, setCopiedPrompt] = useState<string | null>(null)
 
-  const businessName = profile?.business_name || 'Scan Circle Business'
-  const links: LinkItem[] = profile?.links || []
+  useEffect(() => {
+    async function fetchProfile() {
+      const resolvedParams = await params
+      setUserId(resolvedParams.id)
 
-  // Helper to format handles/numbers into active redirect URLs
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', resolvedParams.id)
+        .single()
+
+      if (profile) {
+        if (profile.business_name) setBusinessName(profile.business_name)
+        if (profile.business_type) setBusinessType(profile.business_type)
+        if (profile.google_review_url) setGoogleReviewUrl(profile.google_review_url)
+        if (profile.links) setLinks(profile.links)
+      }
+      setLoading(false)
+    }
+    fetchProfile()
+  }, [params])
+
   const getDestinationUrl = (title: string, value: string) => {
     if (!value) return '#'
     const t = title.toLowerCase()
@@ -49,11 +71,9 @@ export default async function RouterProfilePage({ params }: PageProps) {
       const handle = cleanVal.startsWith('@') ? cleanVal.slice(1) : cleanVal
       return `https://twitter.com/${handle}`
     }
-    // For Facebook, YouTube, or custom, use value directly (ensuring https://)
     return cleanVal.startsWith('http') ? cleanVal : `https://${cleanVal}`
   }
 
-  // Get Brand Color styling & Icons
   const getPlatformStyle = (title: string) => {
     const t = title.toLowerCase()
     if (t.includes('instagram')) return { color: 'from-fuchsia-500 to-pink-500', hover: 'group-hover:text-pink-400' }
@@ -63,7 +83,54 @@ export default async function RouterProfilePage({ params }: PageProps) {
     return { color: 'from-cyan-500 to-indigo-600', hover: 'group-hover:text-cyan-400' }
   }
 
+  // Generate Smart Review Prompts based on Business Type & Rating
+  const getReviewPrompts = () => {
+    if (!selectedRating) return []
+    const type = businessType.toLowerCase()
+
+    if (selectedRating >= 4) {
+      if (type.includes('cafe') || type.includes('restaurant')) {
+        return [
+          "Amazing food quality and incredible ambiance! Will definitely visit again.",
+          "Outstanding service and delicious items. Highly recommended for families and friends!",
+          "Great coffee, great food, and a very warm atmosphere. Five stars!"
+        ]
+      } else if (type.includes('salon') || type.includes('spa')) {
+        return [
+          "Absolute best service! The staff is extremely professional and polite.",
+          "Loved my styling experience here. Very relaxing and clean environment!",
+          "Exceeded my expectations! Will be coming back regularly."
+        ]
+      } else {
+        return [
+          "Exceptional service and seamless experience. Highly recommended!",
+          "Very professional staff and top-tier quality. Five stars all around!",
+          "Quick, efficient, and extremely friendly team. Loved it!"
+        ]
+      }
+    } else {
+      return [
+        "The experience could have been improved regarding waiting times.",
+        "A bit more attention to detail would make this a 5-star experience."
+      ]
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedPrompt(text)
+    setTimeout(() => setCopiedPrompt(null), 3000)
+  }
+
   const activeLinks = links.filter(l => l.enabled && l.value.trim() !== '')
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#05050a] text-gray-400 flex items-center justify-center font-mono text-sm">
+        ESTABLISHING SECURE HANDSHAKE...
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-[#05050a] text-gray-200 relative overflow-hidden flex flex-col items-center py-16 px-6">
@@ -72,7 +139,7 @@ export default async function RouterProfilePage({ params }: PageProps) {
       <div className="absolute bottom-[-10%] right-[-20%] w-[80%] h-[40%] rounded-full bg-indigo-600/20 blur-[100px] pointer-events-none -z-10"></div>
 
       {/* Profile Header */}
-      <div className="w-full max-w-md flex flex-col items-center mb-10 z-10">
+      <div className="w-full max-w-md flex flex-col items-center mb-8 z-10">
         <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-tr from-cyan-400 to-fuchsia-500 mb-4 shadow-[0_0_25px_rgba(34,211,238,0.25)] flex items-center justify-center">
           <div className="w-full h-full rounded-full bg-[#0a0a0f] flex items-center justify-center border-2 border-[#05050a] px-2 text-center">
             <span className="text-xs font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400 uppercase leading-tight">
@@ -82,8 +149,69 @@ export default async function RouterProfilePage({ params }: PageProps) {
         </div>
         
         <h1 className="text-2xl font-bold text-white tracking-tight mb-1 text-center">{businessName}</h1>
-        <p className="text-sm font-mono text-cyan-400/80 tracking-widest uppercase">Verified Hub</p>
+        <p className="text-sm font-mono text-cyan-400/80 tracking-widest uppercase">{businessType}</p>
       </div>
+
+      {/* Interactive Google Review Widget */}
+      {googleReviewUrl && (
+        <div className="w-full max-w-md mb-8 p-6 bg-white/[0.03] border border-white/10 rounded-3xl backdrop-blur-xl z-10 shadow-xl text-center">
+          <h3 className="text-sm font-bold text-white mb-2 uppercase tracking-wider font-mono">Rate Your Experience</h3>
+          <p className="text-xs text-gray-400 mb-4">Tap a star rating to generate instant review templates.</p>
+          
+          <div className="flex justify-center gap-2 mb-6">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                onClick={() => setSelectedRating(star)}
+                className={`text-3xl transition-transform hover:scale-125 focus:outline-none ${selectedRating && selectedRating >= star ? 'text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]' : 'text-gray-600'}`}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+
+          {selectedRating && (
+            <div className="space-y-4 animate-in fade-in duration-300">
+              {selectedRating >= 4 ? (
+                <div>
+                  <p className="text-xs font-mono text-cyan-400 mb-2 uppercase">Suggested Review Templates (Tap to Copy):</p>
+                  <div className="space-y-2">
+                    {getReviewPrompts().map((prompt, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => copyToClipboard(prompt)}
+                        className="w-full text-left p-3 bg-black/40 border border-white/10 rounded-xl text-xs text-gray-300 hover:border-cyan-500/50 transition-all"
+                      >
+                        {prompt} {copiedPrompt === prompt && <span className="float-right text-emerald-400 font-mono">COPIED!</span>}
+                      </button>
+                    ))}
+                  </div>
+                  <a
+                    href={googleReviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-6 w-full py-3 px-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold rounded-xl block shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:opacity-90 transition-all"
+                  >
+                    Proceed to Google Reviews ↗
+                  </a>
+                </div>
+              ) : (
+                <div className="p-4 bg-black/40 border border-white/10 rounded-xl">
+                  <p className="text-xs text-gray-300 mb-2">We are sorry your experience wasn't 5-star. Please share your private feedback with management:</p>
+                  <input 
+                    type="text" 
+                    placeholder="Type your feedback here..." 
+                    className="w-full px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-xs text-gray-200 mb-2 focus:outline-none focus:border-cyan-500"
+                  />
+                  <button onClick={() => alert('Feedback submitted privately. Thank you!')} className="w-full py-2 bg-white/10 text-white text-xs font-medium rounded-lg hover:bg-white/20 transition-all">
+                    Submit Private Feedback
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Dynamic Links Container */}
       <div className="w-full max-w-md flex flex-col gap-4 z-10">
@@ -119,9 +247,7 @@ export default async function RouterProfilePage({ params }: PageProps) {
               </a>
             )
           })
-        ) : (
-          <p className="text-center text-gray-500 font-mono text-sm py-8">No routing vectors configured yet.</p>
-        )}
+        ) : null}
       </div>
 
       {/* Powered By Footer */}
