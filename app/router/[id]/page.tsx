@@ -24,6 +24,7 @@ interface MenuItem {
   name: string
   price: string
   description?: string
+  category: string
 }
 
 export default function RouterProfilePage({ params }: PageProps) {
@@ -34,6 +35,7 @@ export default function RouterProfilePage({ params }: PageProps) {
   const [links, setLinks] = useState<LinkItem[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [showMenuModal, setShowMenuModal] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string>('All')
   const [loading, setLoading] = useState(true)
 
   const [selectedRating, setSelectedRating] = useState<number | null>(null)
@@ -179,6 +181,12 @@ export default function RouterProfilePage({ params }: PageProps) {
   const activeLinks = links.filter(l => l.enabled && l.value.trim() !== '')
   const menuButtonTitle = businessType.toLowerCase().includes('salon') ? 'View Rate Card' : 'View Digital Menu'
 
+  // Extract unique categories
+  const categories = ['All', ...Array.from(new Set(menuItems.map(item => item.category || 'General')))]
+  const filteredMenuItems = activeCategory === 'All' 
+    ? menuItems 
+    : menuItems.filter(item => (item.category || 'General') === activeCategory)
+
   if (loading) {
     return <main className="min-h-screen bg-[#05050a] text-gray-400 flex items-center justify-center font-mono text-sm">INITIALIZING TERMINAL...</main>
   }
@@ -295,26 +303,43 @@ export default function RouterProfilePage({ params }: PageProps) {
         })}
       </div>
 
-      {/* Menu / Rate Card Popup Modal */}
+      {/* Categorized Menu / Rate Card Popup Modal with Horizontal Scrollbar */}
       {showMenuModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 z-50 animate-in fade-in">
-          <div className="bg-[#0d0d14] border border-white/10 rounded-3xl w-full max-w-md p-6 relative max-h-[80vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-[#0d0d14] border border-white/10 rounded-3xl w-full max-w-md p-6 relative max-h-[85vh] flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-white">{businessType.toLowerCase().includes('salon') ? 'Service Rate Card' : 'Digital Menu'}</h3>
               <button onClick={() => setShowMenuModal(false)} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white">✕</button>
             </div>
-            <div className="space-y-3">
-              {menuItems.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center p-4 bg-black/40 border border-white/5 rounded-2xl">
+
+            {/* Horizontal Scrollable Category Filter Bar */}
+            <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin scrollbar-thumb-white/10 shrink-0">
+              {categories.map((cat, index) => (
+                <button
+                  key={index}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Scrollable Items List */}
+            <div className="space-y-3 overflow-y-auto pr-1 flex-1">
+              {filteredMenuItems.map((item, idx) => (
+                <div key={idx} className="p-4 bg-black/40 border border-white/5 rounded-2xl flex justify-between items-start">
                   <div>
-                    <h4 className="text-sm font-bold text-white">{item.name}</h4>
-                    {item.description && <p className="text-xs text-gray-400">{item.description}</p>}
+                    <span className="text-[9px] font-mono bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded uppercase">{item.category || 'General'}</span>
+                    <h4 className="text-sm font-bold text-white mt-1">{item.name}</h4>
+                    {item.description && <p className="text-xs text-gray-400 mt-0.5">{item.description}</p>}
                   </div>
-                  <span className="font-mono text-cyan-400 font-bold">{item.price}</span>
+                  <span className="font-mono text-cyan-400 text-sm font-bold ml-4">{item.price}</span>
                 </div>
               ))}
             </div>
-            <button onClick={() => setShowMenuModal(false)} className="mt-6 w-full py-3 bg-white/10 text-white text-xs font-bold rounded-xl hover:bg-white/20 transition-all">Close</button>
+
+            <button onClick={() => setShowMenuModal(false)} className="mt-4 w-full py-3 bg-white/10 text-white text-xs font-bold rounded-xl hover:bg-white/20 transition-all shrink-0">Close</button>
           </div>
         </div>
       )}

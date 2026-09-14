@@ -13,6 +13,7 @@ interface MenuItem {
   name: string
   price: string
   description?: string
+  category: string
 }
 
 export default function DashboardPage() {
@@ -29,13 +30,15 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false)
   const [deployMessage, setDeployMessage] = useState('')
 
-  // Menu / Rate Card Management State
+  // Menu / Rate Card Management State with Categories
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
-    { name: 'Signature Espresso', price: '$4.50', description: 'Rich dark roast blend' }
+    { name: 'Signature Espresso', price: '$4.50', description: 'Rich dark roast blend', category: 'Drinks' },
+    { name: 'Truffle Fries', price: '$6.00', description: 'Crispy fries with truffle oil', category: 'Snacks' }
   ])
   const [newItemName, setNewItemName] = useState('')
   const [newItemPrice, setNewItemPrice] = useState('')
   const [newItemDesc, setNewItemDesc] = useState('')
+  const [newItemCategory, setNewItemCategory] = useState('Snacks')
 
   // QR Limit & Expiry Management States
   const [qrCodesList, setQrCodesList] = useState<Array<{ id: string; createdAt: string; expiresAt: string }>>([])
@@ -62,7 +65,6 @@ export default function DashboardPage() {
   ])
 
   const [qrColor, setQrColor] = useState('white')
-  const [qrStyle, setQrStyle] = useState('Geometric Square')
   const qrRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -91,7 +93,6 @@ export default function DashboardPage() {
         }
       }
 
-      // Fetch Analytics Events
       const { data: events } = await supabase
         .from('analytics_events')
         .select('event_type')
@@ -131,7 +132,7 @@ export default function DashboardPage() {
 
   const handleAddMenuItem = () => {
     if (!newItemName || !newItemPrice) return
-    setMenuItems([...menuItems, { name: newItemName, price: newItemPrice, description: newItemDesc }])
+    setMenuItems([...menuItems, { name: newItemName, price: newItemPrice, description: newItemDesc, category: newItemCategory }])
     setNewItemName('')
     setNewItemPrice('')
     setNewItemDesc('')
@@ -267,7 +268,6 @@ export default function DashboardPage() {
       <main className="flex-1 p-6 md:p-12 overflow-y-auto z-10">
         <div className="max-w-5xl mx-auto">
           
-          {/* Header with Top Right Profile Dropdown */}
           <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative">
             <div>
               <h1 className="text-4xl font-light tracking-tight text-white mb-2">Command Center</h1>
@@ -315,9 +315,6 @@ export default function DashboardPage() {
                       onClick={handleLogout} 
                       className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                      </svg>
                       Secure Logout
                     </button>
                   </div>
@@ -342,18 +339,19 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Menu / Rate Card Tab */}
+          {/* Menu / Rate Card Tab with Categories */}
           {activeTab === 'menu' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
                 <h3 className="text-xl font-semibold text-white mb-2">
                   {businessType.toLowerCase().includes('salon') ? 'Service Rate List Builder' : 'Digital Menu Bar Builder'}
                 </h3>
-                <p className="text-sm text-gray-400 mb-6 font-mono">Add items that will instantly display on your mobile routing page.</p>
+                <p className="text-sm text-gray-400 mb-6 font-mono">Organize items by category (e.g. Snacks, Main Course, Drinks).</p>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <input type="text" placeholder="Item Name (e.g. Latte)" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
                   <input type="text" placeholder="Price (e.g. $4.00)" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
+                  <input type="text" placeholder="Category (e.g. Snacks)" value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
                   <input type="text" placeholder="Description (Optional)" value={newItemDesc} onChange={(e) => setNewItemDesc(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
                 </div>
                 <button onClick={handleAddMenuItem} className="py-2.5 px-6 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-xl hover:bg-amber-500/30 mb-8">
@@ -364,7 +362,8 @@ export default function DashboardPage() {
                   {menuItems.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center p-4 bg-black/40 border border-white/5 rounded-2xl">
                       <div>
-                        <h4 className="text-sm font-bold text-white">{item.name} <span className="text-cyan-400 font-mono ml-2">{item.price}</span></h4>
+                        <span className="text-[10px] font-mono bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded uppercase">{item.category}</span>
+                        <h4 className="text-sm font-bold text-white mt-1">{item.name} <span className="text-cyan-400 font-mono ml-2">{item.price}</span></h4>
                         <p className="text-xs text-gray-400">{item.description}</p>
                       </div>
                       <button onClick={() => handleRemoveMenuItem(idx)} className="text-xs text-red-400 hover:text-red-300 font-mono">Remove</button>
@@ -398,25 +397,6 @@ export default function DashboardPage() {
                   <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
                     <p className="text-xs font-mono text-emerald-400 uppercase mb-1">Conversion Rate</p>
                     <h4 className="text-3xl font-bold text-white">{conversionRate}%</h4>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
-                    <span className="text-xs text-gray-300">Instagram Clicks</span>
-                    <span className="font-mono text-cyan-400 font-bold">{metrics.instagramClicks}</span>
-                  </div>
-                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
-                    <span className="text-xs text-gray-300">YouTube Clicks</span>
-                    <span className="font-mono text-cyan-400 font-bold">{metrics.youtubeClicks}</span>
-                  </div>
-                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
-                    <span className="text-xs text-gray-300">Facebook Clicks</span>
-                    <span className="font-mono text-cyan-400 font-bold">{metrics.facebookClicks}</span>
-                  </div>
-                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
-                    <span className="text-xs text-gray-300">WhatsApp Clicks</span>
-                    <span className="font-mono text-cyan-400 font-bold">{metrics.whatsappClicks}</span>
                   </div>
                 </div>
               </div>
