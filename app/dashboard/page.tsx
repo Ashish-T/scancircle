@@ -16,6 +16,14 @@ interface MenuItem {
   category: string
 }
 
+interface DestinationItem {
+  id: number
+  title: string
+  value: string
+  type: string
+  enabled: boolean
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('destinations')
@@ -56,7 +64,7 @@ export default function DashboardPage() {
     otherOptionClicks: 0,
   })
   
-  const [destinations, setDestinations] = useState([
+  const [destinations, setDestinations] = useState<DestinationItem[]>([
     { id: 1, title: 'Facebook', value: '', type: 'social', enabled: true },
     { id: 2, title: 'WhatsApp', value: '', type: 'social', enabled: true },
     { id: 3, title: 'Instagram', value: '', type: 'social', enabled: true },
@@ -170,7 +178,7 @@ export default function DashboardPage() {
     setGoogleReviewUrl(place.reviewUrl)
     setSearchResults([])
     setSearchQuery('')
-    setDeployMessage('Google Place synced successfully! Click Deploy to save.')
+    setDeployMessage('Google Place synced successfully! Click Save Changes.')
     setTimeout(() => setDeployMessage(''), 4000)
   }
 
@@ -192,9 +200,9 @@ export default function DashboardPage() {
 
     setSaving(false)
     if (error) {
-      setDeployMessage('Failed to deploy configuration.')
+      setDeployMessage('Failed to save configuration.')
     } else {
-      setDeployMessage('Configuration deployed successfully!')
+      setDeployMessage('Changes saved successfully!')
       setTimeout(() => setDeployMessage(''), 4000)
     }
   }
@@ -215,7 +223,7 @@ export default function DashboardPage() {
     const url = canvas.toDataURL('image/png')
     const link = document.createElement('a')
     link.href = url
-    link.download = 'ScanCircle-Matrix.png'
+    link.download = 'ScanCircle-QR.png'
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -232,12 +240,12 @@ export default function DashboardPage() {
 
   const getTargetConfig = (title: string) => {
     const t = title.toLowerCase()
-    if (t.includes('facebook')) return { label: 'FULL PAGE URL', placeholder: 'https://facebook.com/yourpage', type: 'url' }
+    if (t.includes('facebook')) return { label: 'PAGE URL', placeholder: 'https://facebook.com/yourpage', type: 'url' }
     if (t.includes('whatsapp')) return { label: 'PHONE NUMBER', placeholder: '+1234567890', type: 'tel' }
     if (t.includes('instagram')) return { label: 'USERNAME / HANDLE', placeholder: '@yourhandle', type: 'text' }
-    if (t.includes('youtube')) return { label: 'FULL CHANNEL LINK', placeholder: 'https://youtube.com/@yourchannel', type: 'url' }
+    if (t.includes('youtube')) return { label: 'CHANNEL LINK', placeholder: 'https://youtube.com/@yourchannel', type: 'url' }
     if (t.includes('twitter') || t.includes('x')) return { label: 'USERNAME', placeholder: '@yourusername', type: 'text' }
-    return { label: 'VECTOR TARGET URL', placeholder: 'https://...', type: 'url' }
+    return { label: 'TARGET URL', placeholder: 'https://...', type: 'url' }
   }
 
   const publicProfileUrl = userId ? `https://scancircle.onrender.com/router/${userId}` : ''
@@ -246,32 +254,32 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#05050a] text-gray-200 flex flex-col md:flex-row relative overflow-hidden selection:bg-cyan-500/30">
       
-      {/* Sidebar */}
+      {/* Sidebar Navigation */}
       <aside className="w-full md:w-72 bg-white/[0.02] border-r border-white/5 flex flex-col backdrop-blur-2xl z-20">
         <div className="p-8 border-b border-white/5">
           <h2 className="text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">
             Scan Circle
           </h2>
-          <p className="text-xs text-cyan-500/70 mt-2 font-mono tracking-wider uppercase">Nexus Hub v2.0</p>
+          <p className="text-xs text-gray-400 mt-1">Business Control Panel</p>
         </div>
         
         <nav className="p-6 space-y-3 flex-1">
-          <button onClick={() => setActiveTab('destinations')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'destinations' ? 'bg-gradient-to-r from-cyan-500/15 text-cyan-300 border-l-2 border-cyan-400' : 'text-gray-400 hover:bg-white/5'}`}>Neural Links</button>
+          <button onClick={() => setActiveTab('destinations')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'destinations' ? 'bg-gradient-to-r from-cyan-500/15 text-cyan-300 border-l-2 border-cyan-400' : 'text-gray-400 hover:bg-white/5'}`}>Social Links</button>
           <button onClick={() => setActiveTab('menu')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'menu' ? 'bg-gradient-to-r from-amber-500/15 text-amber-300 border-l-2 border-amber-400' : 'text-gray-400 hover:bg-white/5'}`}>Menu / Rate Card</button>
-          <button onClick={() => setActiveTab('analytics')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'analytics' ? 'bg-gradient-to-r from-emerald-500/15 text-emerald-300 border-l-2 border-emerald-400' : 'text-gray-400 hover:bg-white/5'}`}>Analytics & Metrics</button>
-          <button onClick={() => setActiveTab('qr')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'qr' ? 'bg-gradient-to-r from-indigo-500/15 text-indigo-300 border-l-2 border-indigo-400' : 'text-gray-400 hover:bg-white/5'}`}>QR Matrix Engine</button>
-          <button onClick={() => setActiveTab('places')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'places' ? 'bg-gradient-to-r from-fuchsia-500/15 text-fuchsia-300 border-l-2 border-fuchsia-400' : 'text-gray-400 hover:bg-white/5'}`}>Global Sync</button>
+          <button onClick={() => setActiveTab('analytics')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'analytics' ? 'bg-gradient-to-r from-emerald-500/15 text-emerald-300 border-l-2 border-emerald-400' : 'text-gray-400 hover:bg-white/5'}`}>Analytics & Insights</button>
+          <button onClick={() => setActiveTab('qr')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'qr' ? 'bg-gradient-to-r from-indigo-500/15 text-indigo-300 border-l-2 border-indigo-400' : 'text-gray-400 hover:bg-white/5'}`}>QR Code Studio</button>
+          <button onClick={() => setActiveTab('places')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'places' ? 'bg-gradient-to-r from-fuchsia-500/15 text-fuchsia-300 border-l-2 border-fuchsia-400' : 'text-gray-400 hover:bg-white/5'}`}>Google Places Sync</button>
         </nav>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <main className="flex-1 p-6 md:p-12 overflow-y-auto z-10">
         <div className="max-w-5xl mx-auto">
           
           <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative">
             <div>
-              <h1 className="text-4xl font-light tracking-tight text-white mb-2">Command Center</h1>
-              <p className="text-gray-400 text-sm font-mono">SYS.STATUS: <span className="text-emerald-400">ONLINE</span></p>
+              <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Dashboard</h1>
+              <p className="text-gray-400 text-sm">Manage your links, digital menus, and customer reviews.</p>
             </div>
 
             <div className="flex items-center gap-4">
@@ -281,7 +289,7 @@ export default function DashboardPage() {
                   disabled={saving}
                   className="py-3 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-bold rounded-xl hover:from-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] disabled:opacity-50"
                 >
-                  {saving ? 'Deploying...' : 'Deploy Configuration'}
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
                 {deployMessage && <span className="text-xs font-mono text-cyan-400">{deployMessage}</span>}
               </div>
@@ -301,11 +309,11 @@ export default function DashboardPage() {
                   <div className="absolute right-0 mt-3 w-64 bg-[#0d0d14] border border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-2xl z-30 space-y-3 animate-in fade-in slide-in-from-top-2">
                     <div className="px-1 py-1 border-b border-white/5">
                       <p className="text-xs font-bold text-white truncate">{businessName}</p>
-                      <p className="text-[10px] font-mono text-gray-400 truncate mt-0.5">{userEmail}</p>
+                      <p className="text-xs text-gray-400 truncate mt-0.5">{userEmail}</p>
                     </div>
                     <div className="px-1 py-1 border-b border-white/5 space-y-1">
                       <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">Active QR Allocation</p>
-                      <p className="text-xs font-bold text-white">{qrCodesList.length} / 2 Scanners Created</p>
+                      <p className="text-xs font-bold text-white">{qrCodesList.length} / 2 QR Codes Created</p>
                     </div>
                     <div className="px-1 py-1 border-b border-white/5 space-y-1">
                       <p className="text-[10px] font-mono text-indigo-400 uppercase tracking-widest">Retention Window</p>
@@ -325,12 +333,12 @@ export default function DashboardPage() {
 
           <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/[0.03] p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
             <div>
-              <label className="block text-[10px] font-mono text-cyan-400 uppercase tracking-widest mb-2">Business Name</label>
-              <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
+              <label className="block text-xs font-semibold text-gray-300 mb-2">Business Name</label>
+              <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
             </div>
             <div>
-              <label className="block text-[10px] font-mono text-cyan-400 uppercase tracking-widest mb-2">Business Category (Nature of Business)</label>
-              <select value={businessType} onChange={(e) => setBusinessType(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 appearance-none">
+              <label className="block text-xs font-semibold text-gray-300 mb-2">Nature of Business (Category)</label>
+              <select value={businessType} onChange={(e) => setBusinessType(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 appearance-none">
                 <option value="Cafe & Restaurant">Cafe & Restaurant</option>
                 <option value="Salon & Spa">Salon & Spa</option>
                 <option value="Retail & Shopping">Retail & Shopping</option>
@@ -346,15 +354,15 @@ export default function DashboardPage() {
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
                 <h3 className="text-xl font-semibold text-white mb-2">
-                  {businessType.toLowerCase().includes('salon') ? 'Service Rate List Builder' : 'Digital Menu / Service Catalog'}
+                  {businessType.toLowerCase().includes('salon') ? 'Service Rate List Builder' : 'Digital Menu Builder'}
                 </h3>
-                <p className="text-sm text-gray-400 mb-6 font-mono">Organize items by custom categories (e.g., Haircuts, Skincare, Drinks, Packages).</p>
+                <p className="text-sm text-gray-400 mb-6">Organize items by categories (e.g. Snacks, Drinks, Main Course).</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <input type="text" placeholder="Item Name" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
-                  <input type="text" placeholder="Price" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
-                  <input type="text" placeholder="Category" value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
-                  <input type="text" placeholder="Description (Optional)" value={newItemDesc} onChange={(e) => setNewItemDesc(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
+                  <input type="text" placeholder="Item Name (e.g. Latte)" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
+                  <input type="text" placeholder="Price (e.g. $4.00)" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
+                  <input type="text" placeholder="Category (e.g. Snacks)" value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
+                  <input type="text" placeholder="Description (Optional)" value={newItemDesc} onChange={(e) => setNewItemDesc(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
                 </div>
                 <button onClick={handleAddMenuItem} className="py-2.5 px-6 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-xl hover:bg-amber-500/30 mb-8">
                   + Add Item
@@ -364,11 +372,11 @@ export default function DashboardPage() {
                   {menuItems.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center p-4 bg-black/40 border border-white/5 rounded-2xl">
                       <div>
-                        <span className="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded uppercase">{item.category}</span>
+                        <span className="text-[10px] font-mono bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded uppercase">{item.category}</span>
                         <h4 className="text-sm font-bold text-white mt-1">{item.name} <span className="text-cyan-400 font-mono ml-2">{item.price}</span></h4>
                         <p className="text-xs text-gray-400">{item.description}</p>
                       </div>
-                      <button onClick={() => handleRemoveMenuItem(idx)} className="text-xs text-red-400 hover:text-red-300 font-mono">Remove</button>
+                      <button onClick={() => handleRemoveMenuItem(idx)} className="text-xs text-red-400 hover:text-red-300">Remove</button>
                     </div>
                   ))}
                 </div>
@@ -380,24 +388,24 @@ export default function DashboardPage() {
           {activeTab === 'analytics' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
-                <h3 className="text-xl font-semibold text-white mb-2">Telemetry & Performance Metrics</h3>
-                <p className="text-sm text-gray-400 mb-8 font-mono">Track option engagement and 24-hour repeat customer scanners.</p>
+                <h3 className="text-xl font-semibold text-white mb-2">Analytics & Insights</h3>
+                <p className="text-sm text-gray-400 mb-8">Monitor your total QR scans, repeat customer visits, and review conversions.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                   <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
-                    <p className="text-xs font-mono text-cyan-400 uppercase mb-1">Total QR Scans</p>
+                    <p className="text-xs text-gray-400 uppercase mb-1">Total QR Scans</p>
                     <h4 className="text-3xl font-bold text-white">{metrics.totalScans}</h4>
                   </div>
                   <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
-                    <p className="text-xs font-mono text-indigo-400 uppercase mb-1">Repeat Scans (&gt;24h)</p>
+                    <p className="text-xs text-gray-400 uppercase mb-1">Repeat Scans (&gt;24h)</p>
                     <h4 className="text-3xl font-bold text-white">{metrics.repeatScans}</h4>
                   </div>
                   <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
-                    <p className="text-xs font-mono text-amber-400 uppercase mb-1">Google Review Clicks</p>
+                    <p className="text-xs text-gray-400 uppercase mb-1">Google Review Clicks</p>
                     <h4 className="text-3xl font-bold text-white">{metrics.reviewClicks}</h4>
                   </div>
                   <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
-                    <p className="text-xs font-mono text-emerald-400 uppercase mb-1">Conversion Rate</p>
+                    <p className="text-xs text-gray-400 uppercase mb-1">Conversion Rate</p>
                     <h4 className="text-3xl font-bold text-white">{conversionRate}%</h4>
                   </div>
                 </div>
@@ -424,10 +432,13 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Social Links Tab with Enable/Disable Toggle */}
           {activeTab === 'destinations' && (
             <div className="space-y-6">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
-                <h3 className="text-xl font-semibold text-white mb-8">Active Routing Array</h3>
+                <h3 className="text-xl font-semibold text-white mb-2">Social Links & Destinations</h3>
+                <p className="text-sm text-gray-400 mb-8">Configure the links that customers will see when they scan your QR code. Toggle them on or off.</p>
+                
                 <div className="space-y-4">
                   {destinations.map((dest) => {
                     const inputConfig = getTargetConfig(dest.title)
@@ -435,18 +446,36 @@ export default function DashboardPage() {
                       <div key={dest.id} className="flex flex-col md:flex-row gap-6 items-start md:items-center p-6 bg-black/40 rounded-2xl border border-white/5">
                         <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
-                            <label className="block text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-2">Parameter ID</label>
-                            <input type="text" value={dest.title} onChange={(e) => handleUpdateDestination(dest.id, 'title', e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
+                            <label className="block text-xs font-semibold text-gray-400 mb-2">Platform Name</label>
+                            <input type="text" value={dest.title} onChange={(e) => handleUpdateDestination(dest.id, 'title', e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-mono text-cyan-500/70 uppercase tracking-widest mb-2">{inputConfig.label}</label>
-                            <input type={inputConfig.type} value={dest.value} onChange={(e) => handleUpdateDestination(dest.id, 'value', e.target.value)} placeholder={inputConfig.placeholder} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
+                            <label className="block text-xs font-semibold text-gray-400 mb-2">{inputConfig.label}</label>
+                            <input type={inputConfig.type} value={dest.value} onChange={(e) => handleUpdateDestination(dest.id, 'value', e.target.value)} placeholder={inputConfig.placeholder} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
                           </div>
+                        </div>
+                        
+                        {/* Enable / Disable Toggle Switch */}
+                        <div className="pt-2 md:pt-6 flex flex-col items-center">
+                          <label className="block text-[10px] font-mono text-gray-400 uppercase mb-2">{dest.enabled ? 'Active' : 'Disabled'}</label>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={dest.enabled} 
+                              onChange={(e) => handleUpdateDestination(dest.id, 'enabled', e.target.checked)}
+                              className="sr-only peer" 
+                            />
+                            <div className="w-14 h-7 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-400 peer-checked:to-blue-500"></div>
+                          </label>
                         </div>
                       </div>
                     )
                   })}
                 </div>
+
+                <button onClick={handleAddDestination} className="mt-8 py-2.5 px-6 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs rounded-xl hover:bg-cyan-500/30">
+                  + Add Custom Link
+                </button>
               </div>
             </div>
           )}
@@ -455,31 +484,32 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl flex flex-col items-center justify-center min-h-[450px]">
                 <div className="w-full flex justify-between items-center mb-4 px-2">
-                  <span className="text-xs font-mono text-gray-400">Active Scanners: <strong className="text-cyan-400">{qrCodesList.length}/2</strong></span>
+                  <span className="text-xs text-gray-400">Active Scanners: <strong className="text-cyan-400">{qrCodesList.length}/2</strong></span>
                   <button onClick={handleCreateNewQR} disabled={qrCodesList.length >= 2} className="py-1.5 px-3 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold rounded-xl disabled:opacity-40">+ Generate New QR</button>
                 </div>
                 <div className="w-72 h-72 bg-[#05050a] rounded-3xl border border-white/10 flex items-center justify-center mb-6 relative p-6">
                   {publicProfileUrl && <QRCodeCanvas ref={qrRef} value={publicProfileUrl} size={200} bgColor="#05050a" fgColor={getQRColorHex(qrColor)} level="H" />}
                 </div>
-                <p className="text-[11px] font-mono text-gray-400 mb-6 text-center">Preserved for 30 days. Expires on: <span className="text-indigo-400">{new Date(qrCodesList[0]?.expiresAt || Date.now()).toLocaleDateString()}</span></p>
-                <button onClick={downloadQRCode} className="w-full py-4 px-6 bg-white/5 border border-indigo-500/30 text-indigo-300 font-bold rounded-xl">Extract Holographic Matrix</button>
+                <p className="text-xs text-gray-400 mb-6 text-center">Preserved for 30 days. Expires on: <span className="text-indigo-400">{new Date(qrCodesList[0]?.expiresAt || Date.now()).toLocaleDateString()}</span></p>
+                <button onClick={downloadQRCode} className="w-full py-4 px-6 bg-white/5 border border-indigo-500/30 text-indigo-300 font-bold rounded-xl hover:bg-white/10 transition-all">Download QR Image</button>
               </div>
             </div>
           )}
 
           {activeTab === 'places' && (
             <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
-              <h3 className="text-xl font-semibold text-white mb-2">Global Satellite Link (Google Places Sync)</h3>
+              <h3 className="text-xl font-semibold text-white mb-2">Google Places Sync</h3>
+              <p className="text-sm text-gray-400 mb-6">Search your business name to automatically locate and sync your official Google Review page.</p>
               <form onSubmit={handleGooglePlaceSearch} className="flex gap-4 mb-6">
-                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Enter exact business name..." className="flex-1 px-5 py-4 bg-[#0a0a0f] border border-white/10 rounded-2xl text-sm text-gray-200" />
-                <button type="submit" disabled={searching} className="py-4 px-8 bg-white/5 border border-fuchsia-500/30 text-fuchsia-300 font-bold rounded-2xl">Search Place</button>
+                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Enter exact business name..." className="flex-1 px-5 py-4 bg-[#0a0a0f] border border-white/10 rounded-2xl text-sm text-gray-200 focus:outline-none focus:border-fuchsia-500" />
+                <button type="submit" disabled={searching} className="py-4 px-8 bg-white/5 border border-fuchsia-500/30 text-fuchsia-300 font-bold rounded-2xl hover:bg-fuchsia-500/10 transition-all">Search Place</button>
               </form>
               {searchResults.length > 0 && (
                 <div className="space-y-3 mb-6">
                   {searchResults.map((place, idx) => (
                     <div key={idx} className="p-4 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-between">
                       <div><h4 className="text-sm font-bold text-white">{place.name}</h4><p className="text-xs text-gray-400">{place.address}</p></div>
-                      <button type="button" onClick={() => handleSelectPlace(place)} className="py-2 px-4 bg-cyan-500/20 text-cyan-300 text-xs font-bold rounded-xl">Sync Location</button>
+                      <button type="button" onClick={() => handleSelectPlace(place)} className="py-2 px-4 bg-cyan-500/20 text-cyan-300 text-xs font-bold rounded-xl hover:bg-cyan-500/30">Sync Location</button>
                     </div>
                   ))}
                 </div>

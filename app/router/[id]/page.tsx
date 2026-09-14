@@ -146,7 +146,6 @@ export default function RouterProfilePage({ params }: PageProps) {
     return { color: 'from-cyan-500 to-indigo-600', hover: 'group-hover:text-cyan-400' }
   }
 
-  // Dynamic Industry-Agnostic Review Templates Generator
   const getReviewPrompts = () => {
     if (!selectedRating) return []
     const type = businessType.toLowerCase()
@@ -171,7 +170,6 @@ export default function RouterProfilePage({ params }: PageProps) {
           "Best fitness center around! Great community vibe, clean locker rooms, and fantastic trainers."
         ]
       } else {
-        // Default / Retail / Professional Services
         return [
           "Outstanding service and flawless execution! The team went above and beyond to ensure everything was perfect. Five stars all around!",
           "Extremely professional, prompt, and high quality. One of the best experiences I’ve had. Highly recommend to everyone!",
@@ -220,10 +218,13 @@ export default function RouterProfilePage({ params }: PageProps) {
   const activeLinks = links.filter(l => l.enabled && l.value.trim() !== '')
   const menuButtonTitle = businessType.toLowerCase().includes('salon') ? 'View Rate Card' : 'View Digital Menu'
 
-  const categories = ['All', ...Array.from(new Set(menuItems.map(item => item.category || 'General')))]
+  // Filter out empty or "general" categories from filter buttons
+  const validCategories = menuItems.map(item => item.category?.trim()).filter(Boolean) as string[]
+  const categories = ['All', ...Array.from(new Set(validCategories))]
+  
   const filteredMenuItems = activeCategory === 'All' 
     ? menuItems 
-    : menuItems.filter(item => (item.category || 'General') === activeCategory)
+    : menuItems.filter(item => (item.category?.trim() || '') === activeCategory)
 
   if (loading) {
     return <main className="min-h-screen bg-[#05050a] text-gray-400 flex items-center justify-center font-mono text-sm">INITIALIZING TERMINAL...</main>
@@ -352,23 +353,27 @@ export default function RouterProfilePage({ params }: PageProps) {
               <button onClick={() => setShowMenuModal(false)} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white">✕</button>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin scrollbar-thumb-white/10 shrink-0">
-              {categories.map((cat, index) => (
-                <button
-                  key={index}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            {categories.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin scrollbar-thumb-white/10 shrink-0">
+                {categories.map((cat, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="space-y-3 overflow-y-auto pr-1 flex-1">
               {filteredMenuItems.map((item, idx) => (
                 <div key={idx} className="p-4 bg-black/40 border border-white/5 rounded-2xl flex justify-between items-start">
                   <div>
-                    <span className="text-[9px] font-mono bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded uppercase">{item.category || 'General'}</span>
+                    {item.category?.trim() && (
+                      <span className="text-[9px] font-mono bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded uppercase">{item.category}</span>
+                    )}
                     <h4 className="text-sm font-bold text-white mt-1">{item.name}</h4>
                     {item.description && <p className="text-xs text-gray-400 mt-0.5">{item.description}</p>}
                   </div>
