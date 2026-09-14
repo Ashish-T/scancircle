@@ -53,6 +53,7 @@ export default function DashboardPage() {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [qrColor, setQrColor] = useState('white')
   const [brandLogoUrl, setBrandLogoUrl] = useState('')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const qrRef = useRef<HTMLCanvasElement>(null)
 
   // Analytics Metrics State
@@ -139,6 +140,42 @@ export default function DashboardPage() {
     setQrCodesList([...qrCodesList, { id: `${userId}-${Date.now()}`, createdAt, expiresAt: expiresDate.toISOString() }])
   }
 
+  const handleLogoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0 || !userId) return
+
+    const file = files[0]
+    setUploadingLogo(true)
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${userId}-${Date.now()}.${fileExt}`
+      const filePath = `${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('logos')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) {
+        alert('Error uploading logo: ' + uploadError.message)
+        setUploadingLogo(false)
+        return
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('logos')
+        .getPublicUrl(filePath)
+
+      if (publicUrlData) {
+        setBrandLogoUrl(publicUrlData.publicUrl)
+      }
+      setUploadingLogo(false)
+    } catch (err) {
+      console.error('Logo upload exception:', err)
+      setUploadingLogo(false)
+    }
+  }
+
   const handleAddMenuItem = () => {
     if (!newItemName || !newItemPrice) return
     setMenuItems([...menuItems, { name: newItemName, price: newItemPrice, description: newItemDesc, category: newItemCategory }])
@@ -202,7 +239,7 @@ export default function DashboardPage() {
 
     setSaving(false)
     if (error) {
-      setDeployMessage('Failed to save configuration.')
+      setDeployMessage('Failed to save configuration: ' + error.message)
     } else {
       setDeployMessage('Changes saved successfully!')
       setTimeout(() => setDeployMessage(''), 4000)
@@ -472,7 +509,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* QR Code Studio with Brand Logo Customization */}
+          {/* QR Code Studio with Logo File Uploader */}
           {activeTab === 'qr' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl flex flex-col items-center justify-center min-h-[450px]">
@@ -508,19 +545,19 @@ export default function DashboardPage() {
 
               <div className="space-y-6">
                 <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
-                  <h3 className="text-xl font-semibold text-white mb-6">QR Customizer & Logo</h3>
+                  <h3 className="text-xl font-semibold text-white mb-6">QR Customizer & Logo Upload</h3>
                   
                   <div className="space-y-6">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-2">Brand Logo Image URL (Center Stamp)</label>
+                      <label className="block text-xs font-semibold text-gray-300 mb-2">Upload Brand Logo Image</label>
                       <input 
-                        type="url" 
-                        value={brandLogoUrl}
-                        onChange={(e) => setBrandLogoUrl(e.target.value)}
-                        placeholder="https://example.com/logo.png"
-                        className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500"
+                        type="file" 
+                        accept="image/*"
+                        onChange={handleLogoFileUpload}
+                        className="w-full text-xs text-gray-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30 cursor-pointer"
                       />
-                      <p className="text-[11px] text-gray-500 mt-1">Paste a secure public image link (PNG or JPG) to embed your logo in the QR center.</p>
+                      {uploadingLogo && <p className="text-xs text-cyan-400 mt-2 font-mono">Uploading logo to cloud...</p>}
+                      {brandLogoUrl && !uploadingLogo && <p className="text-xs text-emerald-400 mt-2 font-mono">Logo successfully uploaded and embedded!</p>}
                     </div>
 
                     <div>
