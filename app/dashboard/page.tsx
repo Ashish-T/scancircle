@@ -48,9 +48,12 @@ export default function DashboardPage() {
   const [newItemDesc, setNewItemDesc] = useState('')
   const [newItemCategory, setNewItemCategory] = useState('Snacks')
 
-  // QR Limit & Expiry Management States
+  // QR Customization & Logo State
   const [qrCodesList, setQrCodesList] = useState<Array<{ id: string; createdAt: string; expiresAt: string }>>([])
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
+  const [qrColor, setQrColor] = useState('white')
+  const [brandLogoUrl, setBrandLogoUrl] = useState('')
+  const qrRef = useRef<HTMLCanvasElement>(null)
 
   // Analytics Metrics State
   const [metrics, setMetrics] = useState({
@@ -72,9 +75,6 @@ export default function DashboardPage() {
     { id: 5, title: 'Twitter', value: '', type: 'social', enabled: true },
   ])
 
-  const [qrColor, setQrColor] = useState('white')
-  const qrRef = useRef<HTMLCanvasElement>(null)
-
   useEffect(() => {
     async function loadUserData() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -90,6 +90,7 @@ export default function DashboardPage() {
         if (data.google_review_url) setGoogleReviewUrl(data.google_review_url)
         if (data.links) setDestinations(data.links)
         if (data.business_menu) setMenuItems(data.business_menu)
+        if (data.brand_logo) setBrandLogoUrl(data.brand_logo)
         
         if (data.qr_codes && Array.isArray(data.qr_codes)) {
           setQrCodesList(data.qr_codes)
@@ -194,6 +195,7 @@ export default function DashboardPage() {
       google_review_url: googleReviewUrl,
       links: destinations,
       business_menu: menuItems,
+      brand_logo: brandLogoUrl,
       qr_codes: qrCodesList,
       updated_at: new Date()
     })
@@ -210,8 +212,8 @@ export default function DashboardPage() {
   const getQRColorHex = (color: string) => {
     switch(color) {
       case 'cyan': return '#22d3ee'
-      case 'fuchsia': return '#d946ef'
-      case 'emerald': return '#34d399'
+      case 'amber': return '#f59e0b'
+      case 'emerald': return '#10b981'
       case 'white': 
       default: return '#ffffff'
     }
@@ -223,7 +225,7 @@ export default function DashboardPage() {
     const url = canvas.toDataURL('image/png')
     const link = document.createElement('a')
     link.href = url
-    link.download = 'ScanCircle-QR.png'
+    link.download = `${businessName.replace(/\s+/g, '_')}_ScanCircle_QR.png`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -231,11 +233,6 @@ export default function DashboardPage() {
 
   const handleUpdateDestination = (id: number, field: string, value: string | boolean) => {
     setDestinations(destinations.map(dest => dest.id === id ? { ...dest, [field]: value } : dest))
-  }
-
-  const handleAddDestination = () => {
-    const newId = destinations.length > 0 ? Math.max(...destinations.map(d => d.id)) + 1 : 1
-    setDestinations([...destinations, { id: newId, title: '', value: '', type: 'custom', enabled: true }])
   }
 
   const getTargetConfig = (title: string) => {
@@ -432,12 +429,12 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Social Links Tab with Enable/Disable Toggle */}
+          {/* Social Links Tab */}
           {activeTab === 'destinations' && (
             <div className="space-y-6">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
                 <h3 className="text-xl font-semibold text-white mb-2">Social Links & Destinations</h3>
-                <p className="text-sm text-gray-400 mb-8">Configure the links that customers will see when they scan your QR code. Toggle them on or off.</p>
+                <p className="text-sm text-gray-400 mb-8">Configure the links that customers will see when they scan your QR code.</p>
                 
                 <div className="space-y-4">
                   {destinations.map((dest) => {
@@ -455,7 +452,6 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         
-                        {/* Enable / Disable Toggle Switch */}
                         <div className="pt-2 md:pt-6 flex flex-col items-center">
                           <label className="block text-[10px] font-mono text-gray-400 uppercase mb-2">{dest.enabled ? 'Active' : 'Disabled'}</label>
                           <label className="relative inline-flex items-center cursor-pointer">
@@ -472,26 +468,72 @@ export default function DashboardPage() {
                     )
                   })}
                 </div>
-
-                <button onClick={handleAddDestination} className="mt-8 py-2.5 px-6 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs rounded-xl hover:bg-cyan-500/30">
-                  + Add Custom Link
-                </button>
               </div>
             </div>
           )}
 
+          {/* QR Code Studio with Brand Logo Customization */}
           {activeTab === 'qr' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl flex flex-col items-center justify-center min-h-[450px]">
                 <div className="w-full flex justify-between items-center mb-4 px-2">
                   <span className="text-xs text-gray-400">Active Scanners: <strong className="text-cyan-400">{qrCodesList.length}/2</strong></span>
                   <button onClick={handleCreateNewQR} disabled={qrCodesList.length >= 2} className="py-1.5 px-3 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold rounded-xl disabled:opacity-40">+ Generate New QR</button>
                 </div>
-                <div className="w-72 h-72 bg-[#05050a] rounded-3xl border border-white/10 flex items-center justify-center mb-6 relative p-6">
-                  {publicProfileUrl && <QRCodeCanvas ref={qrRef} value={publicProfileUrl} size={200} bgColor="#05050a" fgColor={getQRColorHex(qrColor)} level="H" />}
+                
+                <div className="w-72 h-72 bg-[#05050a] rounded-3xl border border-white/10 flex items-center justify-center mb-6 relative p-6 shadow-inner">
+                  {publicProfileUrl && (
+                    <QRCodeCanvas 
+                      ref={qrRef}
+                      value={publicProfileUrl}
+                      size={200}
+                      bgColor="#05050a"
+                      fgColor={getQRColorHex(qrColor)}
+                      level="H"
+                      imageSettings={
+                        brandLogoUrl ? {
+                          src: brandLogoUrl,
+                          height: 48,
+                          width: 48,
+                          excavate: true,
+                        } : undefined
+                      }
+                    />
+                  )}
                 </div>
+                
                 <p className="text-xs text-gray-400 mb-6 text-center">Preserved for 30 days. Expires on: <span className="text-indigo-400">{new Date(qrCodesList[0]?.expiresAt || Date.now()).toLocaleDateString()}</span></p>
-                <button onClick={downloadQRCode} className="w-full py-4 px-6 bg-white/5 border border-indigo-500/30 text-indigo-300 font-bold rounded-xl hover:bg-white/10 transition-all">Download QR Image</button>
+                <button onClick={downloadQRCode} className="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:opacity-90 transition-all">Download Branded QR</button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
+                  <h3 className="text-xl font-semibold text-white mb-6">QR Customizer & Logo</h3>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-2">Brand Logo Image URL (Center Stamp)</label>
+                      <input 
+                        type="url" 
+                        value={brandLogoUrl}
+                        onChange={(e) => setBrandLogoUrl(e.target.value)}
+                        placeholder="https://example.com/logo.png"
+                        className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500"
+                      />
+                      <p className="text-[11px] text-gray-500 mt-1">Paste a secure public image link (PNG or JPG) to embed your logo in the QR center.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-3">Matrix Color Palette</label>
+                      <div className="flex gap-4">
+                        <button onClick={() => setQrColor('white')} className={`w-10 h-10 rounded-xl bg-white transition-all ${qrColor === 'white' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
+                        <button onClick={() => setQrColor('cyan')} className={`w-10 h-10 rounded-xl bg-cyan-400 transition-all ${qrColor === 'cyan' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
+                        <button onClick={() => setQrColor('amber')} className={`w-10 h-10 rounded-xl bg-amber-500 transition-all ${qrColor === 'amber' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
+                        <button onClick={() => setQrColor('emerald')} className={`w-10 h-10 rounded-xl bg-emerald-500 transition-all ${qrColor === 'emerald' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
