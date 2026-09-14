@@ -29,7 +29,7 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false)
   const [deployMessage, setDeployMessage] = useState('')
 
-  // Menu / Rate List Management State
+  // Menu / Rate Card Management State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
     { name: 'Signature Espresso', price: '$4.50', description: 'Rich dark roast blend' }
   ])
@@ -262,23 +262,30 @@ export default function DashboardPage() {
           <button onClick={() => setActiveTab('places')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'places' ? 'bg-gradient-to-r from-fuchsia-500/15 text-fuchsia-300 border-l-2 border-fuchsia-400' : 'text-gray-400 hover:bg-white/5'}`}>Global Sync</button>
         </nav>
 
-        {/* Profile Dropdown */}
+        {/* Profile Dropdown with Profile Icon */}
         <div className="p-6 border-t border-white/5 relative">
           <button 
             onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-            className="w-full flex items-center gap-3 p-3 bg-white/[0.03] border border-white/10 rounded-2xl hover:bg-white/[0.06] transition-all"
+            className="w-full flex items-center gap-3 p-3 bg-white/[0.03] border border-white/10 rounded-2xl hover:bg-white/[0.06] transition-all group"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-500 flex items-center justify-center font-bold text-white text-xs">
-              {userEmail.slice(0, 2).toUpperCase()}
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
             </div>
+            
             <div className="flex-1 text-left overflow-hidden">
               <p className="text-xs font-bold text-white truncate">{businessName}</p>
               <p className="text-[10px] font-mono text-gray-400 truncate">{userEmail}</p>
             </div>
+            
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
           </button>
 
           {profileDropdownOpen && (
-            <div className="absolute bottom-24 left-6 right-6 bg-[#0d0d14] border border-white/10 rounded-2xl p-3 shadow-2xl backdrop-blur-2xl z-30 space-y-2">
+            <div className="absolute bottom-24 left-6 right-6 bg-[#0d0d14] border border-white/10 rounded-2xl p-3 shadow-2xl backdrop-blur-2xl z-30 space-y-2 animate-in fade-in slide-in-from-bottom-2">
               <div className="px-3 py-2 border-b border-white/5">
                 <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">Active QR Allocation</p>
                 <p className="text-xs font-bold text-white mt-0.5">{qrCodesList.length} / 2 Scanners Created</p>
@@ -287,7 +294,13 @@ export default function DashboardPage() {
                 <p className="text-[10px] font-mono text-indigo-400 uppercase tracking-widest">Retention Window</p>
                 <p className="text-xs text-gray-300 mt-0.5">30-Day Preservation Active</p>
               </div>
-              <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors">
+              <button 
+                onClick={handleLogout} 
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
                 Secure Logout
               </button>
             </div>
@@ -362,7 +375,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Analytics Tab with Option Clicks and Repeat Scans */}
+          {/* Analytics Tab */}
           {activeTab === 'analytics' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
