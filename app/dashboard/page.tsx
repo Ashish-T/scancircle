@@ -58,24 +58,22 @@ export default function DashboardPage() {
     setSearching(true)
 
     try {
-      // In production, you would call a Next.js API route querying Google Places Text Search API.
-      // Here we simulate fetching the correct matching place data:
-      setTimeout(() => {
-        setSearchResults([
-          { 
-            name: searchQuery, 
-            address: '123 Main Street, City Center', 
-            reviewUrl: `https://search.google.com/local/writereview?placeid=ChIJ_Simulated_${encodeURIComponent(searchQuery)}` 
-          },
-          { 
-            name: `${searchQuery} (Branch 2)`, 
-            address: '456 Market Avenue, Uptown', 
-            reviewUrl: `https://search.google.com/local/writereview?placeid=ChIJ_Simulated_2_${encodeURIComponent(searchQuery)}` 
-          }
-        ])
-        setSearching(false)
-      }, 800)
-    } catch {
+      const res = await fetch(`/api/places?query=${encodeURIComponent(searchQuery)}`)
+      const data = await res.json()
+
+      if (data.results) {
+        const formattedResults = data.results.map((place: any) => ({
+          name: place.name,
+          address: place.formatted_address,
+          reviewUrl: `https://search.google.com/local/writereview?placeid=${place.place_id}`
+        }))
+        setSearchResults(formattedResults)
+      } else {
+        setSearchResults([])
+      }
+      setSearching(false)
+    } catch (error) {
+      console.error('Search error:', error)
       setSearching(false)
     }
   }
