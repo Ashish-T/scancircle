@@ -30,7 +30,7 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false)
   const [deployMessage, setDeployMessage] = useState('')
 
-  // Menu / Rate Card Management State with Categories
+  // Menu / Rate Card Management State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
     { name: 'Signature Espresso', price: '$4.50', description: 'Rich dark roast blend', category: 'Drinks' },
     { name: 'Truffle Fries', price: '$6.00', description: 'Crispy fries with truffle oil', category: 'Snacks' }
@@ -286,7 +286,7 @@ export default function DashboardPage() {
                 {deployMessage && <span className="text-xs font-mono text-cyan-400">{deployMessage}</span>}
               </div>
 
-              {/* Top Right Profile Icon & Dropdown Menu */}
+              {/* Profile Dropdown Menu */}
               <div className="relative">
                 <button 
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
@@ -329,29 +329,31 @@ export default function DashboardPage() {
               <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
             </div>
             <div>
-              <label className="block text-[10px] font-mono text-cyan-400 uppercase tracking-widest mb-2">Business Category</label>
+              <label className="block text-[10px] font-mono text-cyan-400 uppercase tracking-widest mb-2">Business Category (Nature of Business)</label>
               <select value={businessType} onChange={(e) => setBusinessType(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 appearance-none">
                 <option value="Cafe & Restaurant">Cafe & Restaurant</option>
                 <option value="Salon & Spa">Salon & Spa</option>
                 <option value="Retail & Shopping">Retail & Shopping</option>
                 <option value="Fitness & Gym">Fitness & Gym</option>
+                <option value="Professional Services">Professional Services</option>
+                <option value="General & Other">General & Other</option>
               </select>
             </div>
           </div>
 
-          {/* Menu / Rate Card Tab with Categories */}
+          {/* Menu / Rate Card Tab */}
           {activeTab === 'menu' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
                 <h3 className="text-xl font-semibold text-white mb-2">
-                  {businessType.toLowerCase().includes('salon') ? 'Service Rate List Builder' : 'Digital Menu Bar Builder'}
+                  {businessType.toLowerCase().includes('salon') ? 'Service Rate List Builder' : 'Digital Menu / Service Catalog'}
                 </h3>
-                <p className="text-sm text-gray-400 mb-6 font-mono">Organize items by category (e.g. Snacks, Main Course, Drinks).</p>
+                <p className="text-sm text-gray-400 mb-6 font-mono">Organize items by custom categories (e.g., Haircuts, Skincare, Drinks, Packages).</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                  <input type="text" placeholder="Item Name (e.g. Latte)" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
-                  <input type="text" placeholder="Price (e.g. $4.00)" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
-                  <input type="text" placeholder="Category (e.g. Snacks)" value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
+                  <input type="text" placeholder="Item Name" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
+                  <input type="text" placeholder="Price" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
+                  <input type="text" placeholder="Category" value={newItemCategory} onChange={(e) => setNewItemCategory(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
                   <input type="text" placeholder="Description (Optional)" value={newItemDesc} onChange={(e) => setNewItemDesc(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200" />
                 </div>
                 <button onClick={handleAddMenuItem} className="py-2.5 px-6 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-xl hover:bg-amber-500/30 mb-8">
@@ -362,7 +364,7 @@ export default function DashboardPage() {
                   {menuItems.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center p-4 bg-black/40 border border-white/5 rounded-2xl">
                       <div>
-                        <span className="text-[10px] font-mono bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded uppercase">{item.category}</span>
+                        <span className="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded uppercase">{item.category}</span>
                         <h4 className="text-sm font-bold text-white mt-1">{item.name} <span className="text-cyan-400 font-mono ml-2">{item.price}</span></h4>
                         <p className="text-xs text-gray-400">{item.description}</p>
                       </div>
@@ -397,6 +399,25 @@ export default function DashboardPage() {
                   <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
                     <p className="text-xs font-mono text-emerald-400 uppercase mb-1">Conversion Rate</p>
                     <h4 className="text-3xl font-bold text-white">{conversionRate}%</h4>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+                    <span className="text-xs text-gray-300">Instagram Clicks</span>
+                    <span className="font-mono text-cyan-400 font-bold">{metrics.instagramClicks}</span>
+                  </div>
+                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+                    <span className="text-xs text-gray-300">YouTube Clicks</span>
+                    <span className="font-mono text-cyan-400 font-bold">{metrics.youtubeClicks}</span>
+                  </div>
+                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+                    <span className="text-xs text-gray-300">Facebook Clicks</span>
+                    <span className="font-mono text-cyan-400 font-bold">{metrics.facebookClicks}</span>
+                  </div>
+                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+                    <span className="text-xs text-gray-300">WhatsApp Clicks</span>
+                    <span className="font-mono text-cyan-400 font-bold">{metrics.whatsappClicks}</span>
                   </div>
                 </div>
               </div>

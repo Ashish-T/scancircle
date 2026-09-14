@@ -146,27 +146,66 @@ export default function RouterProfilePage({ params }: PageProps) {
     return { color: 'from-cyan-500 to-indigo-600', hover: 'group-hover:text-cyan-400' }
   }
 
+  // Dynamic Industry-Agnostic Review Templates Generator
   const getReviewPrompts = () => {
     if (!selectedRating) return []
     const type = businessType.toLowerCase()
 
-    if (selectedRating >= 4) {
+    if (selectedRating === 5) {
       if (type.includes('cafe') || type.includes('restaurant')) {
         return [
-          "Amazing food quality and incredible ambiance! Will definitely visit again.",
-          "Outstanding service and delicious items. Highly recommended!",
-          "Great coffee, great food, and a very warm atmosphere. Five stars!"
+          "Absolutely phenomenal experience! The food was exceptionally fresh, delicious, and beautifully presented. The ambiance and staff hospitality made our visit truly memorable. Five stars well deserved!",
+          "Top-tier quality from start to finish. Every single dish we ordered exceeded expectations, and the service was warm and attentive. Can't wait to come back again with friends!",
+          "A hidden gem! Incomparable flavors, cozy atmosphere, and prompt service. If you are looking for an incredible dining experience, this is the place to be."
+        ]
+      } else if (type.includes('salon') || type.includes('spa')) {
+        return [
+          "Absolute perfection! The stylists here are true artists who listen carefully to what you want. Clean facilities, soothing ambiance, and unmatched professionalism. Highly recommended!",
+          "Best experience I’ve had in a long time! Extremely hygienic, polite staff, and top-quality treatment results. Completely worth every penny.",
+          "Exceeded all my expectations! Relaxing environment and phenomenal attention to detail. I am definitely becoming a regular client here."
+        ]
+      } else if (type.includes('fitness') || type.includes('gym')) {
+        return [
+          "Amazing facility with state-of-the-art equipment and extremely knowledgeable trainers! Highly motivating environment to reach your fitness goals.",
+          "Clean, well-maintained, and spacious gym floor with top-notch coaching. Love working out here every single day!",
+          "Best fitness center around! Great community vibe, clean locker rooms, and fantastic trainers."
+        ]
+      } else {
+        // Default / Retail / Professional Services
+        return [
+          "Outstanding service and flawless execution! The team went above and beyond to ensure everything was perfect. Five stars all around!",
+          "Extremely professional, prompt, and high quality. One of the best experiences I’ve had. Highly recommend to everyone!",
+          "Brilliant customer care and stellar results. Truly a 5-star establishment!"
+        ]
+      }
+    } else if (selectedRating === 4) {
+      if (type.includes('cafe') || type.includes('restaurant')) {
+        return [
+          "Great food and lovely ambiance! Service was slightly slow due to the weekend rush, but the taste and quality more than made up for it. Would happily visit again.",
+          "Delicious meals and very courteous staff. Enjoyed the overall experience thoroughly, just minor room for speed optimization during peak hours. Great spot!",
+          "Very solid menu options with wonderful flavors. Clean seating area and polite attendants. A wonderful place for casual hangouts."
+        ]
+      } else if (type.includes('salon') || type.includes('spa')) {
+        return [
+          "Very professional service and clean setup. Took a little longer than expected to get started, but the final styling result was fantastic!",
+          "Skilled staff and wonderful results! Very satisfying experience overall, would love to see slightly shorter wait times next time.",
+          "Clean environment, polite team, and great quality treatment. Very happy with the outcome!"
+        ]
+      } else if (type.includes('fitness') || type.includes('gym')) {
+        return [
+          "Great gym with excellent equipment. Can get a bit crowded during peak evening hours, but overall a fantastic place to train.",
+          "Solid equipment and helpful trainers. Very clean and well-organized facility."
         ]
       } else {
         return [
-          "Exceptional service and seamless experience. Highly recommended!",
-          "Very professional staff and top-tier quality. Five stars all around!"
+          "Very good service overall! Prompt response and helpful staff. Minor room for improvement in coordination, but highly satisfied with the outcome.",
+          "Solid experience with professional personnel. Quality of work is great and meets expectations."
         ]
       }
     } else {
       return [
-        "The experience could have been improved regarding waiting times.",
-        "A bit more attention to detail would make this a 5-star experience."
+        "The experience could have been improved regarding waiting times and overall execution.",
+        "A bit more attention to detail and faster service would make this a much better experience."
       ]
     }
   }
@@ -181,7 +220,6 @@ export default function RouterProfilePage({ params }: PageProps) {
   const activeLinks = links.filter(l => l.enabled && l.value.trim() !== '')
   const menuButtonTitle = businessType.toLowerCase().includes('salon') ? 'View Rate Card' : 'View Digital Menu'
 
-  // Extract unique categories
   const categories = ['All', ...Array.from(new Set(menuItems.map(item => item.category || 'General')))]
   const filteredMenuItems = activeCategory === 'All' 
     ? menuItems 
@@ -247,15 +285,17 @@ export default function RouterProfilePage({ params }: PageProps) {
             <div className="space-y-4">
               {selectedRating >= 4 ? (
                 <div>
-                  <p className="text-xs font-mono text-cyan-400 mb-2 uppercase">Suggested Review Templates:</p>
-                  <div className="space-y-2">
+                  <p className="text-xs font-mono text-cyan-400 mb-2 uppercase">
+                    {selectedRating === 5 ? '★ 5-Star Premium Templates:' : '★ 4-Star Balanced Templates:'} (Tap to Copy)
+                  </p>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                     {getReviewPrompts().map((prompt, idx) => (
                       <button
                         key={idx}
                         onClick={() => copyToClipboard(prompt)}
-                        className="w-full text-left p-3 bg-black/40 border border-white/10 rounded-xl text-xs text-gray-300 hover:border-cyan-500/50 transition-all"
+                        className="w-full text-left p-3 bg-black/40 border border-white/10 rounded-xl text-xs text-gray-300 hover:border-cyan-500/50 transition-all leading-relaxed"
                       >
-                        {prompt} {copiedPrompt === prompt && <span className="float-right text-emerald-400 font-mono">COPIED!</span>}
+                        {prompt} {copiedPrompt === prompt && <span className="float-right text-emerald-400 font-mono font-bold">COPIED!</span>}
                       </button>
                     ))}
                   </div>
@@ -303,7 +343,7 @@ export default function RouterProfilePage({ params }: PageProps) {
         })}
       </div>
 
-      {/* Categorized Menu / Rate Card Popup Modal with Horizontal Scrollbar */}
+      {/* Categorized Menu / Rate Card Popup Modal */}
       {showMenuModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 z-50 animate-in fade-in">
           <div className="bg-[#0d0d14] border border-white/10 rounded-3xl w-full max-w-md p-6 relative max-h-[85vh] flex flex-col shadow-2xl">
@@ -312,7 +352,6 @@ export default function RouterProfilePage({ params }: PageProps) {
               <button onClick={() => setShowMenuModal(false)} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:text-white">✕</button>
             </div>
 
-            {/* Horizontal Scrollable Category Filter Bar */}
             <div className="flex gap-2 overflow-x-auto pb-3 mb-4 scrollbar-thin scrollbar-thumb-white/10 shrink-0">
               {categories.map((cat, index) => (
                 <button
@@ -325,7 +364,6 @@ export default function RouterProfilePage({ params }: PageProps) {
               ))}
             </div>
 
-            {/* Scrollable Items List */}
             <div className="space-y-3 overflow-y-auto pr-1 flex-1">
               {filteredMenuItems.map((item, idx) => (
                 <div key={idx} className="p-4 bg-black/40 border border-white/5 rounded-2xl flex justify-between items-start">
