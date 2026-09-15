@@ -13,7 +13,8 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 const SLIDES = [
   '/slide1.jpg',
   '/slide2.jpg',
-  '/slide3.jpg'
+  '/slide3.jpg',
+  '/slide4.jpg'
 ]
 
 export default function HomePage() {
