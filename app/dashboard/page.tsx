@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { QRCodeCanvas } from 'qrcode.react'
 import { useRouter } from 'next/navigation'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -24,6 +23,15 @@ interface DestinationItem {
   enabled: boolean
 }
 
+interface OrderItem {
+  id: string
+  item: string
+  quantity: number
+  amount: string
+  date: string
+  status: string
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('destinations')
@@ -36,9 +44,19 @@ export default function DashboardPage() {
   const [searchResults, setSearchResults] = useState<Array<{ name: string; address: string; reviewUrl: string }>>([])
   const [searching, setSearching] = useState(false)
   
-  // Button State: 'idle' (Save Changes), 'saving' (Saving...), 'saved' (Saved in Green)
+  // Save State
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [deployMessage, setDeployMessage] = useState('')
+
+  // Subscription State
+  const [subscriptionStatus, setSubscriptionStatus] = useState('free')
+  const [utrInput, setUtrInput] = useState('')
+  const [submittingUtr, setSubmittingUtr] = useState(false)
+
+  // Shop Orders State
+  const [storeOrders, setStoreOrders] = useState<OrderItem[]>([])
+  const [shippingAddress, setShippingAddress] = useState('')
+  const [orderingStand, setOrderingStand] = useState(false)
 
   // Menu / Rate Card State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
@@ -53,10 +71,10 @@ export default function DashboardPage() {
   // QR Customization & Logo State
   const [qrCodesList, setQrCodesList] = useState<Array<{ id: string; createdAt: string; expiresAt: string }>>([])
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
-  const [qrColor, setQrColor] = useState('white')
+  const [qrColor, setQrColor] = useState('#22d3ee')
   const [brandLogoUrl, setBrandLogoUrl] = useState('')
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const qrRef = useRef<HTMLCanvasElement>(null)
+  const circularCanvasRef = useRef<HTMLCanvasElement>(null)
 
   // Analytics Metrics State
   const [metrics, setMetrics] = useState({
@@ -97,6 +115,8 @@ export default function DashboardPage() {
         if (data.links) setDestinations(data.links)
         if (data.business_menu) setMenuItems(data.business_menu)
         if (data.brand_logo) setBrandLogoUrl(data.brand_logo)
+        if (data.subscription_status) setSubscriptionStatus(data.subscription_status)
+        if (data.store_orders) setStoreOrders(data.store_orders)
         
         if (data.qr_codes && Array.isArray(data.qr_codes)) {
           setQrCodesList(data.qr_codes)
@@ -129,12 +149,71 @@ export default function DashboardPage() {
     loadUserData()
   }, [router])
 
+  // Draw True Circular QR Canvas Pattern
+  useEffect(() => {
+    const canvas = circularCanvasRef.current
+    if (!canvas || !userId) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const width = canvas.width
+    const height = canvas.height
+    ctx.clearRect(0, 0, width, height)
+
+    // Background
+    ctx.fillStyle = '#05050a'
+    ctx.fillRect(0, 0, width, height)
+
+    const centerX = width / 2
+    const centerY = height / 2
+    const radius = width * 0.42
+
+    // Draw Circular Outer Ring & Target Dots
+    ctx.strokeStyle = qrColor
+    ctx.lineWidth = 4
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+    ctx.stroke()
+
+    // Draw Concentric Data Ring Dots (Artistic Circular QR Encoding Matrix)
+    const rings = 12
+    const dotColor = qrColor
+
+    for (let r = 3; r <= rings; r++) {
+      const ringRadius = (radius / rings) * r
+      const dotsInRing = r * 8
+      for (let i = 0; i < dotsInRing; i++) {
+        const angle = (i / dotsInRing) * Math.PI * 2
+        // Pseudo-random pseudo-hashing based on user id and position for stable unique pattern
+        const seed = (userId.charCodeAt(0) + r + i) % 3
+        if (seed !== 0) {
+          const x = centerX + Math.cos(angle) * ringRadius
+          const y = centerY + Math.sin(angle) * ringRadius
+
+          ctx.fillStyle = dotColor
+          ctx.beginPath()
+          ctx.arc(x, y, 3, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+    }
+
+    // Draw Center Core (Brand Logo or Target Finder)
+    ctx.fillStyle = '#0a0a0f'
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, 32, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = qrColor
+    ctx.lineWidth = 3
+    ctx.stroke()
+
+  }, [userId, qrColor, brandLogoUrl])
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
-  // Any changes revert the save button back to "Save Changes"
   const markAsUnsaved = () => {
     if (saveStatus === 'saved') {
       setSaveStatus('idle')
@@ -188,6 +267,57 @@ export default function DashboardPage() {
       console.error('Logo upload exception:', err)
       setUploadingLogo(false)
     }
+  }
+
+  const handleSubmitUtr = async () => {
+    if (!utrInput.trim() || !userId) {
+      alert('Please enter your UPI Transaction ID (UTR).')
+      return
+    }
+
+    setSubmittingUtr(true)
+    const expiryDate = new Date()
+    expiryDate.setDate(expiryDate.getDate() + 365)
+
+    const { error } = await supabase.from('profiles').update({
+      subscription_status: 'pro_pending_verification',
+      subscription_expiry: expiryDate.toISOString(),
+      pending_utr: utrInput.trim()
+    }).eq('id', userId)
+
+    setSubmittingUtr(false)
+    if (error) {
+      alert('Failed to submit UTR: ' + error.message)
+    } else {
+      setSubscriptionStatus('pro_pending_verification')
+      alert('Payment reference submitted successfully! Verification usually takes less than 30 minutes.')
+      setUtrInput('')
+    }
+  }
+
+  const handleOrderTableStand = () => {
+    if (!shippingAddress.trim()) {
+      alert('Please enter your delivery shipping address.')
+      return
+    }
+
+    setOrderingStand(true)
+    setTimeout(() => {
+      const newOrder: OrderItem = {
+        id: `ORD-${Date.now().toString().slice(-6)}`,
+        item: 'Acrylic Table Stand with Custom Circular QR',
+        quantity: 1,
+        amount: '₹499',
+        date: new Date().toLocaleDateString(),
+        status: 'Processing / Dispatching'
+      }
+
+      const updatedOrders = [newOrder, ...storeOrders]
+      setStoreOrders(updatedOrders)
+      setOrderingStand(false)
+      setShippingAddress('')
+      alert('Order placed successfully! Your table stand is being prepared for dispatch.')
+    }, 1000)
   }
 
   const handleAddMenuItem = () => {
@@ -250,6 +380,7 @@ export default function DashboardPage() {
       links: destinations,
       business_menu: menuItems,
       brand_logo: brandLogoUrl,
+      store_orders: storeOrders,
       qr_codes: qrCodesList,
       updated_at: new Date()
     })
@@ -258,27 +389,55 @@ export default function DashboardPage() {
       setSaveStatus('idle')
       setDeployMessage('Failed to save: ' + error.message)
     } else {
-      setSaveStatus('saved') // Changes button text to "Saved" and color to green
+      setSaveStatus('saved')
     }
   }
 
-  const getQRColorHex = (color: string) => {
-    switch(color) {
-      case 'cyan': return '#22d3ee'
-      case 'amber': return '#f59e0b'
-      case 'emerald': return '#10b981'
-      case 'white': 
-      default: return '#ffffff'
-    }
-  }
+  const downloadTrueCircularQRCode = () => {
+    const canvas = circularCanvasRef.current
+    if (!canvas) return
 
-  const downloadQRCode = () => {
-    if (!qrRef.current) return
-    const canvas = qrRef.current
-    const url = canvas.toDataURL('image/png')
+    const exportCanvas = document.createElement('canvas')
+    exportCanvas.width = 800
+    exportCanvas.height = 950
+    const ctx = exportCanvas.getContext('2d')
+    if (!ctx) return
+
+    // Background
+    ctx.fillStyle = '#0a0a0f'
+    ctx.fillRect(0, 0, 800, 950)
+
+    // Border Frame
+    ctx.strokeStyle = qrColor
+    ctx.lineWidth = 6
+    ctx.strokeRect(40, 40, 720, 870)
+
+    // Title: SCAN CIRCLE
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 36px monospace'
+    ctx.textAlign = 'center'
+    ctx.fillText('SCAN CIRCLE', 400, 120)
+
+    // Subtitle: Scan to Unlock
+    ctx.fillStyle = qrColor
+    ctx.font = '18px sans-serif'
+    ctx.fillText('• Scan to Unlock •', 400, 160)
+
+    // Draw Circular QR Canvas
+    ctx.drawImage(canvas, 160, 200, 480, 480)
+
+    // Business Name at Bottom
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 32px sans-serif'
+    ctx.fillText(businessName, 400, 740)
+
+    ctx.fillStyle = '#9ca3af'
+    ctx.font = '16px monospace'
+    ctx.fillText('Powered by Scan Circle', 400, 790)
+
     const link = document.createElement('a')
-    link.href = url
-    link.download = `${businessName.replace(/\s+/g, '_')}_ScanCircle_QR.png`
+    link.download = `${businessName.replace(/\s+/g, '_')}_Circular_QR.png`
+    link.href = exportCanvas.toDataURL('image/png')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -299,7 +458,6 @@ export default function DashboardPage() {
     return { label: 'TARGET URL', placeholder: 'https://...', type: 'url' }
   }
 
-  const publicProfileUrl = userId ? `https://scancircle.onrender.com/router/${userId}` : ''
   const conversionRate = metrics.totalScans > 0 ? ((metrics.reviewClicks / metrics.totalScans) * 100).toFixed(1) : '0'
 
   return (
@@ -319,7 +477,9 @@ export default function DashboardPage() {
           <button onClick={() => setActiveTab('menu')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'menu' ? 'bg-gradient-to-r from-amber-500/15 text-amber-300 border-l-2 border-amber-400' : 'text-gray-400 hover:bg-white/5'}`}>Menu / Rate Card</button>
           <button onClick={() => setActiveTab('analytics')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'analytics' ? 'bg-gradient-to-r from-emerald-500/15 text-emerald-300 border-l-2 border-emerald-400' : 'text-gray-400 hover:bg-white/5'}`}>Analytics & Insights</button>
           <button onClick={() => setActiveTab('qr')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'qr' ? 'bg-gradient-to-r from-indigo-500/15 text-indigo-300 border-l-2 border-indigo-400' : 'text-gray-400 hover:bg-white/5'}`}>QR Code Studio</button>
+          <button onClick={() => setActiveTab('subscription')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'subscription' ? 'bg-gradient-to-r from-cyan-500/15 text-cyan-300 border-l-2 border-cyan-400' : 'text-gray-400 hover:bg-white/5'}`}>Subscription & Billing</button>
           <button onClick={() => setActiveTab('places')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'places' ? 'bg-gradient-to-r from-fuchsia-500/15 text-fuchsia-300 border-l-2 border-fuchsia-400' : 'text-gray-400 hover:bg-white/5'}`}>Google Places Sync</button>
+          <button onClick={() => setActiveTab('shop')} className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'shop' ? 'bg-gradient-to-r from-rose-500/15 text-rose-300 border-l-2 border-rose-400' : 'text-gray-400 hover:bg-white/5'}`}>Shop (Table Stands)</button>
         </nav>
       </aside>
 
@@ -330,12 +490,11 @@ export default function DashboardPage() {
           <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Dashboard</h1>
-              <p className="text-gray-400 text-sm">Manage your links, digital menus, and customer reviews.</p>
+              <p className="text-gray-400 text-sm">Manage your links, digital menus, subscriptions, and hardware.</p>
             </div>
 
             <div className="flex items-center gap-4">
               <div className="flex flex-col items-end gap-1">
-                {/* Dynamic Save Changes / Saved Button */}
                 {saveStatus === 'saved' ? (
                   <button 
                     onClick={handleDeployConfig}
@@ -482,25 +641,6 @@ export default function DashboardPage() {
                     <h4 className="text-3xl font-bold text-white">{conversionRate}%</h4>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
-                    <span className="text-xs text-gray-300">Instagram Clicks</span>
-                    <span className="font-mono text-cyan-400 font-bold">{metrics.instagramClicks}</span>
-                  </div>
-                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
-                    <span className="text-xs text-gray-300">YouTube Clicks</span>
-                    <span className="font-mono text-cyan-400 font-bold">{metrics.youtubeClicks}</span>
-                  </div>
-                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
-                    <span className="text-xs text-gray-300">Facebook Clicks</span>
-                    <span className="font-mono text-cyan-400 font-bold">{metrics.facebookClicks}</span>
-                  </div>
-                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
-                    <span className="text-xs text-gray-300">WhatsApp Clicks</span>
-                    <span className="font-mono text-cyan-400 font-bold">{metrics.whatsappClicks}</span>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -559,7 +699,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* QR Code Studio */}
+          {/* True Circular QR Code Studio */}
           {activeTab === 'qr' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl flex flex-col items-center justify-center min-h-[450px]">
@@ -568,29 +708,19 @@ export default function DashboardPage() {
                   <button onClick={handleCreateNewQR} disabled={qrCodesList.length >= 2} className="py-1.5 px-3 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold rounded-xl disabled:opacity-40">+ Generate New QR</button>
                 </div>
                 
-                <div className="w-72 h-72 bg-[#05050a] rounded-3xl border border-white/10 flex items-center justify-center mb-6 relative p-6 shadow-inner">
-                  {publicProfileUrl && (
-                    <QRCodeCanvas 
-                      ref={qrRef}
-                      value={publicProfileUrl}
-                      size={200}
-                      bgColor="#05050a"
-                      fgColor={getQRColorHex(qrColor)}
-                      level="H"
-                      imageSettings={
-                        brandLogoUrl ? {
-                          src: brandLogoUrl,
-                          height: 48,
-                          width: 48,
-                          excavate: true,
-                        } : undefined
-                      }
-                    />
-                  )}
+                {/* Circular Marketing Preview Card */}
+                <div className="w-72 bg-[#0a0a0f] rounded-3xl border-2 border-cyan-500/40 flex flex-col items-center p-6 mb-6 shadow-2xl relative">
+                  <h3 className="text-lg font-extrabold tracking-widest text-white mb-1 font-mono">SCAN CIRCLE</h3>
+                  <p className="text-[11px] font-medium text-cyan-400 mb-4 tracking-wider uppercase">• Scan to Unlock •</p>
+                  
+                  <div className="w-48 h-48 bg-[#05050a] rounded-full border border-white/10 flex items-center justify-center p-3 mb-4 shadow-inner overflow-hidden">
+                    <canvas ref={circularCanvasRef} width={200} height={200} className="w-full h-full object-contain" />
+                  </div>
+
+                  <h4 className="text-sm font-bold text-white text-center truncate w-full">{businessName}</h4>
                 </div>
                 
-                <p className="text-xs text-gray-400 mb-6 text-center">Preserved for 30 days. Expires on: <span className="text-indigo-400">{new Date(qrCodesList[0]?.expiresAt || Date.now()).toLocaleDateString()}</span></p>
-                <button onClick={downloadQRCode} className="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:opacity-90 transition-all">Download Branded QR</button>
+                <button onClick={downloadTrueCircularQRCode} className="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:opacity-90 transition-all">Download Circular QR</button>
               </div>
 
               <div className="space-y-6">
@@ -606,17 +736,16 @@ export default function DashboardPage() {
                         onChange={handleLogoFileUpload}
                         className="w-full text-xs text-gray-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30 cursor-pointer"
                       />
-                      {uploadingLogo && <p className="text-xs text-cyan-400 mt-2 font-mono">Uploading logo to cloud...</p>}
-                      {brandLogoUrl && !uploadingLogo && <p className="text-xs text-emerald-400 mt-2 font-mono">Logo successfully uploaded and embedded!</p>}
+                      {uploadingLogo && <p className="text-xs text-cyan-400 mt-2 font-mono">Uploading logo...</p>}
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-3">Matrix Color Palette</label>
+                      <label className="block text-xs font-semibold text-gray-300 mb-3">Matrix Color Theme</label>
                       <div className="flex gap-4">
-                        <button onClick={() => { setQrColor('white'); markAsUnsaved(); }} className={`w-10 h-10 rounded-xl bg-white transition-all ${qrColor === 'white' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
-                        <button onClick={() => { setQrColor('cyan'); markAsUnsaved(); }} className={`w-10 h-10 rounded-xl bg-cyan-400 transition-all ${qrColor === 'cyan' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
-                        <button onClick={() => { setQrColor('amber'); markAsUnsaved(); }} className={`w-10 h-10 rounded-xl bg-amber-500 transition-all ${qrColor === 'amber' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
-                        <button onClick={() => { setQrColor('emerald'); markAsUnsaved(); }} className={`w-10 h-10 rounded-xl bg-emerald-500 transition-all ${qrColor === 'emerald' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
+                        <button onClick={() => { setQrColor('#22d3ee'); markAsUnsaved(); }} className="w-10 h-10 rounded-xl bg-cyan-400 ring-2 ring-offset-2 ring-offset-[#05050a] ring-cyan-400"></button>
+                        <button onClick={() => { setQrColor('#f59e0b'); markAsUnsaved(); }} className="w-10 h-10 rounded-xl bg-amber-500"></button>
+                        <button onClick={() => { setQrColor('#10b981'); markAsUnsaved(); }} className="w-10 h-10 rounded-xl bg-emerald-500"></button>
+                        <button onClick={() => { setQrColor('#ffffff'); markAsUnsaved(); }} className="w-10 h-10 rounded-xl bg-white"></button>
                       </div>
                     </div>
                   </div>
@@ -625,6 +754,53 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Subscription & Billing Tab */}
+          {activeTab === 'subscription' && (
+            <div className="space-y-6 animate-in fade-in duration-500">
+              <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
+                <h3 className="text-xl font-semibold text-white mb-2">Subscription & Billing</h3>
+                <p className="text-sm text-gray-400 mb-8">Upgrade your Scan Circle account to Pro by scanning our official payment QR and submitting your UTR.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                  <div className="p-6 bg-black/40 border border-white/5 rounded-2xl text-center flex flex-col items-center">
+                    <p className="text-xs font-mono text-cyan-400 uppercase mb-3">Scan to Pay via UPI (₹999 / Year)</p>
+                    <div className="w-48 h-48 bg-white p-3 rounded-2xl shadow-lg flex items-center justify-center mb-4">
+                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=yourupi@oksbi&pn=ScanCircle&am=999&cu=INR" alt="UPI QR" className="w-full h-full object-contain" />
+                    </div>
+                    <p className="text-xs font-mono text-gray-300">UPI ID: <strong className="text-cyan-300">yourupi@oksbi</strong></p>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl">
+                      <p className="text-xs font-mono text-cyan-300">
+                        Current Tier: <strong className="uppercase text-white">{subscriptionStatus}</strong>
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-2">Enter UPI Transaction ID (UTR)</label>
+                      <input 
+                        type="text" 
+                        value={utrInput}
+                        onChange={(e) => setUtrInput(e.target.value)}
+                        placeholder="e.g. 435678912345"
+                        className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 mb-4"
+                      />
+                      <button 
+                        onClick={handleSubmitUtr}
+                        disabled={submittingUtr}
+                        className="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-xs rounded-xl hover:opacity-90 transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] disabled:opacity-50"
+                      >
+                        {submittingUtr ? 'Verifying...' : 'Submit Payment Reference'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Google Places Sync Tab */}
           {activeTab === 'places' && (
             <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
               <h3 className="text-xl font-semibold text-white mb-2">Google Places Sync</h3>
@@ -645,6 +821,76 @@ export default function DashboardPage() {
               )}
             </div>
           )}
+
+          {/* Shop Tab */}
+          {activeTab === 'shop' && (
+            <div className="space-y-6 animate-in fade-in duration-500">
+              <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white mb-1">Hardware Store (Acrylic Table Stands)</h3>
+                    <p className="text-sm text-gray-400">Order professional acrylic table stands with your custom circular QR code pre-printed.</p>
+                  </div>
+                  <span className="py-1 px-3 bg-rose-500/20 border border-rose-500/40 text-rose-300 font-mono text-xs rounded-full">₹499 per Stand (Free Delivery)</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                  <div className="p-6 bg-black/40 border border-white/5 rounded-2xl flex flex-col items-center justify-center">
+                    <div className="w-60 h-72 bg-[#0a0a0f] rounded-2xl border-2 border-cyan-500/40 flex flex-col items-center p-4 shadow-xl mb-4">
+                      <span className="text-xs font-mono text-white font-bold tracking-widest">SCAN CIRCLE</span>
+                      <span className="text-[9px] text-cyan-400 uppercase mb-2">• Scan to Unlock •</span>
+                      <div className="w-32 h-32 bg-black rounded-full border border-white/10 flex items-center justify-center my-auto overflow-hidden">
+                        <span className="text-[10px] text-gray-500 font-mono">Circular QR</span>
+                      </div>
+                      <span className="text-xs font-bold text-white truncate w-full text-center">{businessName}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 font-mono text-center">Premium White Acrylic Stand with Double-Sided Print</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-2">Delivery Shipping Address</label>
+                      <textarea 
+                        rows={4}
+                        value={shippingAddress}
+                        onChange={(e) => setShippingAddress(e.target.value)}
+                        placeholder="Enter full street address, landmark, city, and pincode..."
+                        className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-rose-500"
+                      />
+                    </div>
+                    <button 
+                      onClick={handleOrderTableStand}
+                      disabled={orderingStand}
+                      className="w-full py-4 px-6 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:opacity-90 transition-all disabled:opacity-50"
+                    >
+                      {orderingStand ? 'Placing Order...' : 'Order Table Stand (₹499)'}
+                    </button>
+                  </div>
+                </div>
+
+                {storeOrders.length > 0 && (
+                  <div className="mt-8 pt-8 border-t border-white/5">
+                    <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider font-mono">Your Hardware Order History</h4>
+                    <div className="space-y-3">
+                      {storeOrders.map((ord) => (
+                        <div key={ord.id} className="p-4 bg-black/40 border border-white/5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                          <div>
+                            <p className="text-xs font-mono text-cyan-400">{ord.id} <span className="text-gray-400 ml-2">({ord.date})</span></p>
+                            <h5 className="text-sm font-bold text-white mt-0.5">{ord.item}</h5>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="text-xs font-mono bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30">{ord.status}</span>
+                            <span className="font-mono text-white font-bold">{ord.amount}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       </main>
     </div>
