@@ -11,7 +11,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Slideshow images (Place these in your /public folder)
 const SLIDES = [
-  '/slide1.png',
+  '/slide1.jpg',
   '/slide2.jpg',
   '/slide3.png',
   '/slide4.png'

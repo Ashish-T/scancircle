@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import { QRCodeCanvas } from 'qrcode.react'
 import { useRouter } from 'next/navigation'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -30,6 +31,8 @@ interface OrderItem {
   amount: string
   date: string
   status: string
+  utr?: string
+  address?: string
 }
 
 export default function DashboardPage() {
@@ -49,12 +52,14 @@ export default function DashboardPage() {
 
   // Subscription State
   const [subscriptionStatus, setSubscriptionStatus] = useState('free')
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState<string | null>(null)
   const [utrInput, setUtrInput] = useState('')
   const [submittingUtr, setSubmittingUtr] = useState(false)
 
   // Shop Orders State
   const [storeOrders, setStoreOrders] = useState<OrderItem[]>([])
   const [shippingAddress, setShippingAddress] = useState('')
+  const [shopUtr, setShopUtr] = useState('')
   const [orderingStand, setOrderingStand] = useState(false)
 
   // Menu / Rate Card State
@@ -72,7 +77,7 @@ export default function DashboardPage() {
   const [qrColor, setQrColor] = useState('#22d3ee')
   const [brandLogoUrl, setBrandLogoUrl] = useState('')
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const circularCanvasRef = useRef<HTMLCanvasElement>(null)
+  const qrRef = useRef<HTMLCanvasElement>(null)
 
   // Places Sync State
   const [searchQuery, setSearchQuery] = useState('')
@@ -108,6 +113,7 @@ export default function DashboardPage() {
         if (data.links) setDestinations(data.links)
         if (data.brand_logo) setBrandLogoUrl(data.brand_logo)
         if (data.subscription_status) setSubscriptionStatus(data.subscription_status)
+        if (data.subscription_expiry) setSubscriptionExpiry(data.subscription_expiry)
         if (data.store_orders) setStoreOrders(data.store_orders)
         
         if (data.business_menu) {
@@ -128,7 +134,6 @@ export default function DashboardPage() {
         }
       }
 
-      // Load Analytics
       const { data: events } = await supabase.from('analytics_events').select('event_type').eq('business_id', user.id)
       if (events) {
         setMetrics({
@@ -145,44 +150,11 @@ export default function DashboardPage() {
     loadUserData()
   }, [router])
 
-  // Circular Canvas Drawer
-  useEffect(() => {
-    const canvas = circularCanvasRef.current
-    if (!canvas || !userId) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const width = canvas.width; const height = canvas.height
-    ctx.clearRect(0, 0, width, height)
-    ctx.fillStyle = '#05050a'; ctx.fillRect(0, 0, width, height)
-
-    const centerX = width / 2; const centerY = height / 2; const radius = width * 0.42
-    ctx.strokeStyle = qrColor; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(centerX, centerY, radius, 0, Math.PI * 2); ctx.stroke()
-
-    const rings = 12
-    for (let r = 3; r <= rings; r++) {
-      const ringRadius = (radius / rings) * r
-      const dotsInRing = r * 8
-      for (let i = 0; i < dotsInRing; i++) {
-        const angle = (i / dotsInRing) * Math.PI * 2
-        const seed = (userId.charCodeAt(0) + r + i) % 3
-        if (seed !== 0) {
-          ctx.fillStyle = qrColor
-          ctx.beginPath()
-          ctx.arc(centerX + Math.cos(angle) * ringRadius, centerY + Math.sin(angle) * ringRadius, 3, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      }
-    }
-    ctx.fillStyle = '#0a0a0f'; ctx.beginPath(); ctx.arc(centerX, centerY, 32, 0, Math.PI * 2); ctx.fill()
-    ctx.strokeStyle = qrColor; ctx.lineWidth = 3; ctx.stroke()
-  }, [userId, qrColor, brandLogoUrl])
-
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/login') }
   const markAsUnsaved = () => { if (saveStatus === 'saved') setSaveStatus('idle') }
 
   // --------------------------------------------------------
-  // MISSING HELPER FUNCTIONS ADDED BACK HERE
+  // HELPER FUNCTIONS
   // --------------------------------------------------------
 
   const handleRemoveMenuItem = (index: number) => {
@@ -257,29 +229,38 @@ export default function DashboardPage() {
     setTimeout(() => setDeployMessage(''), 4000)
   }
 
-  const handleOrderTableStand = () => {
-    if (!shippingAddress.trim()) {
-      alert('Please enter your delivery shipping address.')
+  const handleOrderTableStand = async () => {
+    if (!shippingAddress.trim() || !shopUtr.trim()) {
+      alert('Please enter both your Delivery Address and Payment UTR.')
       return
     }
 
     setOrderingStand(true)
-    setTimeout(() => {
-      const newOrder: OrderItem = {
-        id: `ORD-${Date.now().toString().slice(-6)}`,
-        item: 'Acrylic Table Stand with Custom Circular QR',
-        quantity: 1,
-        amount: '₹499',
-        date: new Date().toLocaleDateString(),
-        status: 'Processing / Dispatching'
-      }
+    const newOrder: OrderItem = {
+      id: `ORD-${Date.now().toString().slice(-6)}`,
+      item: 'Acrylic Table Stand with QR',
+      quantity: 1,
+      amount: '₹499',
+      date: new Date().toLocaleDateString(),
+      status: 'Payment Verification Pending',
+      utr: shopUtr.trim(),
+      address: shippingAddress.trim()
+    }
 
-      setStoreOrders([newOrder, ...storeOrders])
-      setOrderingStand(false)
+    const updatedOrders = [newOrder, ...storeOrders]
+    
+    // Auto-save order immediately to Supabase database so the admin gets the record
+    const { error } = await supabase.from('profiles').update({ store_orders: updatedOrders }).eq('id', userId)
+
+    if (error) {
+      alert('Error placing order: ' + error.message)
+    } else {
+      setStoreOrders(updatedOrders)
       setShippingAddress('')
-      markAsUnsaved()
-      alert('Order placed successfully! Please save your changes to persist the order.')
-    }, 1000)
+      setShopUtr('')
+      alert('Order placed successfully! We will dispatch the stand after payment verification.')
+    }
+    setOrderingStand(false)
   }
 
   const handleSubmitUtr = async () => {
@@ -289,6 +270,7 @@ export default function DashboardPage() {
     }
 
     setSubmittingUtr(true)
+    // Set tentative expiry for tracking. Will be finalized by admin.
     const expiryDate = new Date()
     expiryDate.setDate(expiryDate.getDate() + 365)
 
@@ -303,6 +285,7 @@ export default function DashboardPage() {
       alert('Failed to submit UTR: ' + error.message)
     } else {
       setSubscriptionStatus('pro_pending_verification')
+      setSubscriptionExpiry(expiryDate.toISOString())
       alert('Payment reference submitted successfully! Verification usually takes less than 30 minutes.')
       setUtrInput('')
     }
@@ -320,28 +303,59 @@ export default function DashboardPage() {
     else setSaveStatus('saved')
   }
 
-  const downloadTrueCircularQRCode = () => {
-    const canvas = circularCanvasRef.current
-    if (!canvas) return
-    const exportCanvas = document.createElement('canvas'); exportCanvas.width = 800; exportCanvas.height = 950
-    const ctx = exportCanvas.getContext('2d'); if (!ctx) return
+  const downloadBrandedQRCode = () => {
+    if (!qrRef.current) return
+    const canvas = qrRef.current
+    const qrImage = canvas.toDataURL('image/png')
 
-    ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0, 0, 800, 950)
-    ctx.strokeStyle = qrColor; ctx.lineWidth = 6; ctx.strokeRect(40, 40, 720, 870)
-    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center'; ctx.fillText('SCAN CIRCLE', 400, 120)
-    ctx.fillStyle = qrColor; ctx.font = '18px sans-serif'; ctx.fillText('• Scan to Unlock •', 400, 160)
-    ctx.drawImage(canvas, 160, 200, 480, 480)
-    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 32px sans-serif'; ctx.fillText(businessName, 400, 740)
-    ctx.fillStyle = '#9ca3af'; ctx.font = '16px monospace'; ctx.fillText('Powered by Scan Circle', 400, 790)
+    const exportCanvas = document.createElement('canvas')
+    exportCanvas.width = 800
+    exportCanvas.height = 950
+    const ctx = exportCanvas.getContext('2d')
+    if (!ctx) return
 
-    const link = document.createElement('a'); link.download = `${businessName.replace(/\s+/g, '_')}_Circular_QR.png`
-    link.href = exportCanvas.toDataURL('image/png'); link.click()
+    ctx.fillStyle = '#0a0a0f'
+    ctx.fillRect(0, 0, 800, 950)
+
+    ctx.strokeStyle = qrColor
+    ctx.lineWidth = 6
+    ctx.strokeRect(40, 40, 720, 870)
+
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 36px monospace'
+    ctx.textAlign = 'center'
+    ctx.fillText('SCAN CIRCLE', 400, 120)
+
+    ctx.fillStyle = qrColor
+    ctx.font = '18px sans-serif'
+    ctx.fillText('• Scan to Unlock •', 400, 160)
+
+    const img = new Image()
+    img.src = qrImage
+    img.onload = () => {
+      ctx.drawImage(img, 180, 200, 440, 440)
+
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 32px sans-serif'
+      ctx.fillText(businessName, 400, 740)
+
+      ctx.fillStyle = '#9ca3af'
+      ctx.font = '16px monospace'
+      ctx.fillText('Powered by Scan Circle', 400, 790)
+
+      const link = document.createElement('a')
+      link.download = `${businessName.replace(/\s+/g, '_')}_ScanCircle_QR.png`
+      link.href = exportCanvas.toDataURL('image/png')
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
   }
 
   // Define derived variables
   const conversionRate = metrics.totalScans > 0 ? ((metrics.reviewClicks / metrics.totalScans) * 100).toFixed(1) : '0'
   const publicProfileUrl = userId ? `https://scancircle.onrender.com/router/${userId}` : ''
-
+  const displayExpiry = subscriptionExpiry ? new Date(subscriptionExpiry).toLocaleDateString() : 'Expiring Soon (Free Trial)'
 
   // --------------------------------------------------------
   // UI RENDER COMPONENTS
@@ -479,16 +493,30 @@ export default function DashboardPage() {
         <div className="w-full flex justify-between items-center mb-4 px-2">
           <span className="text-xs text-gray-400">Active Scanners: <strong className="text-cyan-400">{qrCodesList.length}/2</strong></span>
         </div>
+
+        {/* Restored Native Square QR with Logo Center */}
         <div className="w-72 bg-[#0a0a0f] rounded-3xl border-2 border-cyan-500/40 flex flex-col items-center p-6 mb-6 shadow-2xl relative">
           <h3 className="text-lg font-extrabold tracking-widest text-white mb-1 font-mono">SCAN CIRCLE</h3>
           <p className="text-[11px] font-medium text-cyan-400 mb-4 tracking-wider uppercase">• Scan to Unlock •</p>
-          <div className="w-48 h-48 bg-[#05050a] rounded-full border border-white/10 flex items-center justify-center p-3 mb-4 shadow-inner overflow-hidden">
-            <canvas ref={circularCanvasRef} width={200} height={200} className="w-full h-full object-contain" />
+          <div className="w-48 h-48 bg-[#05050a] rounded-2xl border border-white/10 flex items-center justify-center p-3 mb-4 shadow-inner">
+            {publicProfileUrl && (
+              <QRCodeCanvas 
+                ref={qrRef}
+                value={publicProfileUrl}
+                size={160}
+                bgColor="#05050a"
+                fgColor={qrColor}
+                level="H"
+                imageSettings={brandLogoUrl ? { src: brandLogoUrl, height: 36, width: 36, excavate: true } : undefined}
+              />
+            )}
           </div>
           <h4 className="text-sm font-bold text-white text-center truncate w-full">{businessName}</h4>
         </div>
-        <button onClick={downloadTrueCircularQRCode} className="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:opacity-90">Download Circular QR</button>
+
+        <button onClick={downloadBrandedQRCode} className="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:opacity-90">Download QR</button>
       </div>
+
       <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
         <h3 className="text-xl font-semibold text-white mb-6">QR Customizer & Logo</h3>
         <div className="space-y-6">
@@ -536,28 +564,58 @@ export default function DashboardPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div><h3 className="text-xl font-semibold text-white mb-1">Hardware Store (Acrylic Table Stands)</h3><p className="text-sm text-gray-400">Order professional stands with your custom circular QR pre-printed.</p></div>
+          <div><h3 className="text-xl font-semibold text-white mb-1">Hardware Store (Acrylic Table Stands)</h3><p className="text-sm text-gray-400">Order professional stands with your custom Scan Circle QR pre-printed.</p></div>
           <span className="py-1 px-3 bg-rose-500/20 border border-rose-500/40 text-rose-300 font-mono text-xs rounded-full">₹499 per Stand (Free Delivery)</span>
         </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <div className="p-6 bg-black/40 border border-white/5 rounded-2xl flex flex-col items-center justify-center">
             <div className="w-60 h-72 bg-[#0a0a0f] rounded-2xl border-2 border-cyan-500/40 flex flex-col items-center p-4 shadow-xl mb-4">
               <span className="text-xs font-mono text-white font-bold tracking-widest">SCAN CIRCLE</span><span className="text-[9px] text-cyan-400 uppercase mb-2">• Scan to Unlock •</span>
-              <div className="w-32 h-32 bg-black rounded-full border border-white/10 flex items-center justify-center my-auto overflow-hidden"><span className="text-[10px] text-gray-500 font-mono">Circular QR</span></div>
+              <div className="w-32 h-32 bg-black rounded-xl border border-white/10 flex items-center justify-center my-auto overflow-hidden"><span className="text-[10px] text-gray-500 font-mono">Your QR</span></div>
               <span className="text-xs font-bold text-white truncate w-full text-center">{businessName}</span>
             </div>
             <p className="text-xs text-gray-400 font-mono text-center">Premium White Acrylic Stand</p>
           </div>
+
           <div className="space-y-4">
+            <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl mb-4">
+              <p className="text-xs text-gray-300 font-mono mb-2">1. Pay ₹499 via UPI to: <strong className="text-rose-400 font-bold">scancircle@axl</strong></p>
+              <p className="text-xs text-gray-300 font-mono">2. Enter your Shipping Address & 12-Digit UTR below to confirm order.</p>
+            </div>
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-2">Delivery Shipping Address</label>
-              <textarea rows={4} value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="Full street address, landmark, city..." className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 outline-none focus:border-rose-500" />
+              <textarea rows={3} value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="Full street address, landmark, city..." className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 outline-none focus:border-rose-500" />
             </div>
-            <button onClick={handleOrderTableStand} disabled={orderingStand} className="w-full py-4 px-6 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:opacity-90 disabled:opacity-50">
-              {orderingStand ? 'Placing Order...' : 'Order Table Stand (₹499)'}
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 mb-2">Payment UTR (Transaction ID)</label>
+              <input type="text" value={shopUtr} onChange={(e) => setShopUtr(e.target.value)} placeholder="e.g. 435678912345" className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 outline-none focus:border-rose-500" />
+            </div>
+            <button onClick={handleOrderTableStand} disabled={orderingStand} className="w-full py-4 px-6 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:opacity-90 disabled:opacity-50 mt-2">
+              {orderingStand ? 'Saving Order...' : 'Place Order (₹499)'}
             </button>
           </div>
         </div>
+
+        {storeOrders.length > 0 && (
+          <div className="mt-8 pt-8 border-t border-white/5">
+            <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider font-mono">Your Order History</h4>
+            <div className="space-y-3">
+              {storeOrders.map((ord) => (
+                <div key={ord.id} className="p-4 bg-black/40 border border-white/5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <p className="text-xs font-mono text-cyan-400">{ord.id} <span className="text-gray-400 ml-2">({ord.date})</span></p>
+                    <h5 className="text-sm font-bold text-white mt-0.5">{ord.item}</h5>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-xs font-mono bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full border border-amber-500/30">{ord.status}</span>
+                    <span className="font-mono text-white font-bold">{ord.amount}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -581,8 +639,14 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-6">
             <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl flex items-center justify-between">
-              <div><p className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider">Account Tier</p><h4 className="text-sm font-bold text-white uppercase mt-0.5">{subscriptionStatus}</h4></div>
-              <span className="text-xs font-mono py-1 px-3 bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/30">{subscriptionStatus === 'free' ? 'Standard Tier' : 'Pro Member'}</span>
+              <div>
+                <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider">Account Tier</p>
+                <h4 className="text-sm font-bold text-white uppercase mt-0.5">{subscriptionStatus}</h4>
+              </div>
+              <div className="text-right">
+                 <p className="text-[10px] font-mono text-rose-400 uppercase tracking-wider">Valid Until</p>
+                 <h4 className="text-sm font-bold text-white mt-0.5">{displayExpiry}</h4>
+              </div>
             </div>
             <div className="bg-black/30 p-6 rounded-2xl border border-white/5 space-y-4">
               <div>
