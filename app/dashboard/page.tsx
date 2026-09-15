@@ -57,7 +57,7 @@ export default function DashboardPage() {
   const [shippingAddress, setShippingAddress] = useState('')
   const [orderingStand, setOrderingStand] = useState(false)
 
-  // --- NEW MENU BUILDER STATE ---
+  // Menu / Rate Card State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [menuCategories, setMenuCategories] = useState<string[]>(['Snacks', 'Drinks'])
   const [activeMenuCategory, setActiveMenuCategory] = useState<string>('Snacks')
@@ -112,7 +112,6 @@ export default function DashboardPage() {
         
         if (data.business_menu) {
           setMenuItems(data.business_menu)
-          // Extract existing categories from data
           const existingCats = Array.from(new Set(data.business_menu.map((item: MenuItem) => item.category))) as string[]
           if (existingCats.length > 0) {
             setMenuCategories(existingCats)
@@ -183,8 +182,132 @@ export default function DashboardPage() {
   const markAsUnsaved = () => { if (saveStatus === 'saved') setSaveStatus('idle') }
 
   // --------------------------------------------------------
-  // HELPER FUNCTIONS (Save, Download, Uploads)
+  // MISSING HELPER FUNCTIONS ADDED BACK HERE
   // --------------------------------------------------------
+
+  const handleRemoveMenuItem = (index: number) => {
+    setMenuItems(menuItems.filter((_, i) => i !== index))
+    markAsUnsaved()
+  }
+
+  const handleLogoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0 || !userId) return
+
+    const file = files[0]
+    setUploadingLogo(true)
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${userId}-${Date.now()}.${fileExt}`
+      
+      const { error: uploadError } = await supabase.storage
+        .from('logos')
+        .upload(fileName, file, { upsert: true })
+
+      if (uploadError) {
+        alert('Error uploading logo: ' + uploadError.message)
+        setUploadingLogo(false)
+        return
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('logos').getPublicUrl(fileName)
+
+      if (publicUrlData) {
+        setBrandLogoUrl(publicUrlData.publicUrl)
+        markAsUnsaved()
+      }
+      setUploadingLogo(false)
+    } catch (err) {
+      console.error('Logo upload exception:', err)
+      setUploadingLogo(false)
+    }
+  }
+
+  const handleGooglePlaceSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+    setSearching(true)
+
+    try {
+      const res = await fetch(`/api/places?query=${encodeURIComponent(searchQuery)}`)
+      const data = await res.json()
+      if (data.results) {
+        setSearchResults(data.results.map((place: any) => ({
+          name: place.name,
+          address: place.formatted_address,
+          reviewUrl: `https://search.google.com/local/writereview?placeid=${place.place_id}`
+        })))
+      } else {
+        setSearchResults([])
+      }
+      setSearching(false)
+    } catch {
+      setSearching(false)
+    }
+  }
+
+  const handleSelectPlace = (place: { name: string; reviewUrl: string }) => {
+    setBusinessName(place.name)
+    setGoogleReviewUrl(place.reviewUrl)
+    setSearchResults([])
+    setSearchQuery('')
+    markAsUnsaved()
+    setDeployMessage('Google Place synced! Click Save Changes.')
+    setTimeout(() => setDeployMessage(''), 4000)
+  }
+
+  const handleOrderTableStand = () => {
+    if (!shippingAddress.trim()) {
+      alert('Please enter your delivery shipping address.')
+      return
+    }
+
+    setOrderingStand(true)
+    setTimeout(() => {
+      const newOrder: OrderItem = {
+        id: `ORD-${Date.now().toString().slice(-6)}`,
+        item: 'Acrylic Table Stand with Custom Circular QR',
+        quantity: 1,
+        amount: '₹499',
+        date: new Date().toLocaleDateString(),
+        status: 'Processing / Dispatching'
+      }
+
+      setStoreOrders([newOrder, ...storeOrders])
+      setOrderingStand(false)
+      setShippingAddress('')
+      markAsUnsaved()
+      alert('Order placed successfully! Please save your changes to persist the order.')
+    }, 1000)
+  }
+
+  const handleSubmitUtr = async () => {
+    if (!utrInput.trim() || !userId) {
+      alert('Please enter your UPI Transaction ID (UTR).')
+      return
+    }
+
+    setSubmittingUtr(true)
+    const expiryDate = new Date()
+    expiryDate.setDate(expiryDate.getDate() + 365)
+
+    const { error } = await supabase.from('profiles').update({
+      subscription_status: 'pro_pending_verification',
+      subscription_expiry: expiryDate.toISOString(),
+      pending_utr: utrInput.trim()
+    }).eq('id', userId)
+
+    setSubmittingUtr(false)
+    if (error) {
+      alert('Failed to submit UTR: ' + error.message)
+    } else {
+      setSubscriptionStatus('pro_pending_verification')
+      alert('Payment reference submitted successfully! Verification usually takes less than 30 minutes.')
+      setUtrInput('')
+    }
+  }
+
   const handleDeployConfig = async () => {
     if (!userId) return
     setSaveStatus('saving')
@@ -215,13 +338,17 @@ export default function DashboardPage() {
     link.href = exportCanvas.toDataURL('image/png'); link.click()
   }
 
+  // Define derived variables
+  const conversionRate = metrics.totalScans > 0 ? ((metrics.reviewClicks / metrics.totalScans) * 100).toFixed(1) : '0'
+  const publicProfileUrl = userId ? `https://scancircle.onrender.com/router/${userId}` : ''
+
+
   // --------------------------------------------------------
-  // UI RENDER COMPONENTS (Clean & Modular)
+  // UI RENDER COMPONENTS
   // --------------------------------------------------------
 
   const renderSocialLinksTab = () => (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Business Setup Inputs */}
       <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/[0.03] p-6 rounded-3xl border border-white/10 backdrop-blur-xl shadow-lg">
         <div>
           <label className="block text-xs font-semibold text-gray-300 mb-2">Business Name</label>
@@ -239,7 +366,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Links Config */}
       <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
         <h3 className="text-xl font-semibold text-white mb-2">Social Links & Destinations</h3>
         <p className="text-sm text-gray-400 mb-8">Configure the links that customers will see when they scan your QR code.</p>
@@ -494,7 +620,6 @@ export default function DashboardPage() {
           <button onClick={() => setActiveTab('shop')} className={`w-full flex items-start px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'shop' ? 'bg-gradient-to-r from-rose-500/15 text-rose-300 border-l-2 border-rose-400' : 'text-gray-400 hover:bg-white/5'}`}>Shop (Table Stands)</button>
           
           <div className="mt-auto pt-4 border-t border-white/5">
-            {/* Subscription & Billing moved to bottom */}
             <button onClick={() => setActiveTab('subscription')} className={`w-full flex items-start px-5 py-3.5 rounded-2xl text-sm font-medium transition-all ${activeTab === 'subscription' ? 'bg-gradient-to-r from-cyan-500/15 text-cyan-300 border-l-2 border-cyan-400' : 'text-gray-400 hover:bg-white/5'}`}>Subscription & Billing</button>
           </div>
         </nav>
