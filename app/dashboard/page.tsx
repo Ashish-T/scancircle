@@ -41,28 +41,23 @@ export default function DashboardPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string>('')
   
-  // Business Core State
   const [businessName, setBusinessName] = useState('My Business Name')
   const [businessType, setBusinessType] = useState('Cafe & Restaurant')
   const [googleReviewUrl, setGoogleReviewUrl] = useState('')
   
-  // Save State
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [deployMessage, setDeployMessage] = useState('')
 
-  // Subscription State
   const [subscriptionStatus, setSubscriptionStatus] = useState('free')
   const [subscriptionExpiry, setSubscriptionExpiry] = useState<string | null>(null)
   const [utrInput, setUtrInput] = useState('')
   const [submittingUtr, setSubmittingUtr] = useState(false)
 
-  // Shop Orders State
   const [storeOrders, setStoreOrders] = useState<OrderItem[]>([])
   const [shippingAddress, setShippingAddress] = useState('')
   const [shopUtr, setShopUtr] = useState('')
   const [orderingStand, setOrderingStand] = useState(false)
 
-  // Menu / Rate Card State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [menuCategories, setMenuCategories] = useState<string[]>(['Snacks', 'Drinks'])
   const [activeMenuCategory, setActiveMenuCategory] = useState<string>('Snacks')
@@ -71,7 +66,6 @@ export default function DashboardPage() {
   const [newItemPrice, setNewItemPrice] = useState('')
   const [newItemDesc, setNewItemDesc] = useState('')
 
-  // QR Customization & Logo State
   const [qrCodesList, setQrCodesList] = useState<Array<{ id: string; createdAt: string; expiresAt: string }>>([])
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [qrColor, setQrColor] = useState('#22d3ee')
@@ -79,17 +73,14 @@ export default function DashboardPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const qrRef = useRef<HTMLCanvasElement>(null)
 
-  // Places Sync State
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Array<{ name: string; address: string; reviewUrl: string }>>([])
   const [searching, setSearching] = useState(false)
 
-  // Analytics Metrics State
   const [metrics, setMetrics] = useState({
     totalScans: 0, repeatScans: 0, instagramClicks: 0, youtubeClicks: 0, facebookClicks: 0, whatsappClicks: 0, reviewClicks: 0
   })
   
-  // Destinations State
   const [destinations, setDestinations] = useState<DestinationItem[]>([
     { id: 1, title: 'Facebook', value: '', type: 'social', enabled: true },
     { id: 2, title: 'WhatsApp', value: '', type: 'social', enabled: true },
@@ -157,6 +148,18 @@ export default function DashboardPage() {
   // HELPER FUNCTIONS
   // --------------------------------------------------------
 
+  const handleRemoveCategory = (catToRemove: string) => {
+    if (confirm(`Are you sure you want to delete the category "${catToRemove}" and all items inside it?`)) {
+      const updatedCategories = menuCategories.filter(c => c !== catToRemove)
+      setMenuCategories(updatedCategories)
+      setMenuItems(menuItems.filter(item => item.category !== catToRemove))
+      if (activeMenuCategory === catToRemove) {
+        setActiveMenuCategory(updatedCategories.length > 0 ? updatedCategories[0] : '')
+      }
+      markAsUnsaved()
+    }
+  }
+
   const handleRemoveMenuItem = (index: number) => {
     setMenuItems(menuItems.filter((_, i) => i !== index))
     markAsUnsaved()
@@ -173,9 +176,7 @@ export default function DashboardPage() {
       const fileExt = file.name.split('.').pop()
       const fileName = `${userId}-${Date.now()}.${fileExt}`
       
-      const { error: uploadError } = await supabase.storage
-        .from('logos')
-        .upload(fileName, file, { upsert: true })
+      const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, file, { upsert: true })
 
       if (uploadError) {
         alert('Error uploading logo: ' + uploadError.message)
@@ -184,7 +185,6 @@ export default function DashboardPage() {
       }
 
       const { data: publicUrlData } = supabase.storage.from('logos').getPublicUrl(fileName)
-
       if (publicUrlData) {
         setBrandLogoUrl(publicUrlData.publicUrl)
         markAsUnsaved()
@@ -200,7 +200,6 @@ export default function DashboardPage() {
     e.preventDefault()
     if (!searchQuery.trim()) return
     setSearching(true)
-
     try {
       const res = await fetch(`/api/places?query=${encodeURIComponent(searchQuery)}`)
       const data = await res.json()
@@ -210,13 +209,9 @@ export default function DashboardPage() {
           address: place.formatted_address,
           reviewUrl: `https://search.google.com/local/writereview?placeid=${place.place_id}`
         })))
-      } else {
-        setSearchResults([])
-      }
+      } else { setSearchResults([]) }
       setSearching(false)
-    } catch {
-      setSearching(false)
-    }
+    } catch { setSearching(false) }
   }
 
   const handleSelectPlace = (place: { name: string; reviewUrl: string }) => {
@@ -248,8 +243,6 @@ export default function DashboardPage() {
     }
 
     const updatedOrders = [newOrder, ...storeOrders]
-    
-    // Auto-save order immediately to Supabase database so the admin gets the record
     const { error } = await supabase.from('profiles').update({ store_orders: updatedOrders }).eq('id', userId)
 
     if (error) {
@@ -270,9 +263,8 @@ export default function DashboardPage() {
     }
 
     setSubmittingUtr(true)
-    // Set tentative expiry for tracking. Will be finalized by admin.
     const expiryDate = new Date()
-    expiryDate.setDate(expiryDate.getDate() + 365)
+    expiryDate.setDate(expiryDate.getDate() + 30) // Set validity to 30 Days
 
     const { error } = await supabase.from('profiles').update({
       subscription_status: 'pro_pending_verification',
@@ -352,7 +344,11 @@ export default function DashboardPage() {
     }
   }
 
-  // Define derived variables
+  const handleUpdateDestination = (id: number, field: string, value: string | boolean) => {
+    setDestinations(destinations.map(dest => dest.id === id ? { ...dest, [field]: value } : dest))
+    markAsUnsaved()
+  }
+
   const conversionRate = metrics.totalScans > 0 ? ((metrics.reviewClicks / metrics.totalScans) * 100).toFixed(1) : '0'
   const publicProfileUrl = userId ? `https://scancircle.onrender.com/router/${userId}` : ''
   const displayExpiry = subscriptionExpiry ? new Date(subscriptionExpiry).toLocaleDateString() : 'Expiring Soon (Free Trial)'
@@ -424,13 +420,10 @@ export default function DashboardPage() {
           <label className="block text-xs font-semibold text-cyan-400 uppercase tracking-widest mb-4">1. Menu Categories</label>
           <div className="flex flex-wrap gap-2 mb-4">
             {menuCategories.map((cat, idx) => (
-              <button 
-                key={idx} 
-                onClick={() => setActiveMenuCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeMenuCategory === cat ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
-              >
-                {cat}
-              </button>
+              <div key={idx} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeMenuCategory === cat ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}>
+                <button onClick={() => setActiveMenuCategory(cat)} className="outline-none">{cat}</button>
+                <button onClick={() => handleRemoveCategory(cat)} className={`ml-2 font-bold hover:scale-125 transition-transform ${activeMenuCategory === cat ? 'text-black' : 'text-red-400'}`}>×</button>
+              </div>
             ))}
           </div>
           <div className="flex gap-4 max-w-md">
@@ -440,35 +433,39 @@ export default function DashboardPage() {
         </div>
 
         {/* Item Adder */}
-        <div className="mb-8 p-6 bg-black/30 border border-white/5 rounded-2xl">
-          <label className="block text-xs font-semibold text-cyan-400 uppercase tracking-widest mb-4">2. Add Item to: <span className="text-white">{activeMenuCategory}</span></label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <input type="text" placeholder="Item Name (e.g. Latte)" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 outline-none" />
-            <input type="text" placeholder="Price (e.g. $4.00)" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 outline-none" />
-            <input type="text" placeholder="Description (Optional)" value={newItemDesc} onChange={(e) => setNewItemDesc(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 outline-none" />
+        {activeMenuCategory && (
+          <div className="mb-8 p-6 bg-black/30 border border-white/5 rounded-2xl">
+            <label className="block text-xs font-semibold text-cyan-400 uppercase tracking-widest mb-4">2. Add Item to: <span className="text-white">{activeMenuCategory}</span></label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <input type="text" placeholder="Item Name (e.g. Latte)" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 outline-none" />
+              <input type="text" placeholder="Price (e.g. $4.00)" value={newItemPrice} onChange={(e) => setNewItemPrice(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 outline-none" />
+              <input type="text" placeholder="Description (Optional)" value={newItemDesc} onChange={(e) => setNewItemDesc(e.target.value)} className="px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 outline-none" />
+            </div>
+            <button onClick={() => { if(newItemName && newItemPrice) { setMenuItems([...menuItems, { name: newItemName, price: newItemPrice, description: newItemDesc, category: activeMenuCategory }]); setNewItemName(''); setNewItemPrice(''); setNewItemDesc(''); markAsUnsaved() } }} className="py-2.5 px-6 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-xl hover:bg-amber-500/30">
+              + Add Item to {activeMenuCategory}
+            </button>
           </div>
-          <button onClick={() => { if(newItemName && newItemPrice) { setMenuItems([...menuItems, { name: newItemName, price: newItemPrice, description: newItemDesc, category: activeMenuCategory }]); setNewItemName(''); setNewItemPrice(''); setNewItemDesc(''); markAsUnsaved() } }} className="py-2.5 px-6 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs rounded-xl hover:bg-amber-500/30">
-            + Add Item to {activeMenuCategory}
-          </button>
-        </div>
+        )}
 
         {/* Filtered Item List */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 border-b border-white/5 pb-2">Items in {activeMenuCategory}</h4>
-          {menuItems.filter(item => item.category === activeMenuCategory).length === 0 && <p className="text-sm text-gray-500 italic">No items in this category yet.</p>}
-          {menuItems.map((item, idx) => {
-            if (item.category !== activeMenuCategory) return null;
-            return (
-              <div key={idx} className="flex justify-between items-center p-4 bg-black/40 border border-white/5 rounded-2xl">
-                <div>
-                  <h4 className="text-sm font-bold text-white mt-1">{item.name} <span className="text-cyan-400 font-mono ml-2">{item.price}</span></h4>
-                  <p className="text-xs text-gray-400">{item.description}</p>
+        {activeMenuCategory && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 border-b border-white/5 pb-2">Items in {activeMenuCategory}</h4>
+            {menuItems.filter(item => item.category === activeMenuCategory).length === 0 && <p className="text-sm text-gray-500 italic">No items in this category yet.</p>}
+            {menuItems.map((item, idx) => {
+              if (item.category !== activeMenuCategory) return null;
+              return (
+                <div key={idx} className="flex justify-between items-center p-4 bg-black/40 border border-white/5 rounded-2xl">
+                  <div>
+                    <h4 className="text-sm font-bold text-white mt-1">{item.name} <span className="text-cyan-400 font-mono ml-2">{item.price}</span></h4>
+                    <p className="text-xs text-gray-400">{item.description}</p>
+                  </div>
+                  <button onClick={() => handleRemoveMenuItem(menuItems.indexOf(item))} className="text-xs text-red-400 hover:text-red-300">Remove</button>
                 </div>
-                <button onClick={() => handleRemoveMenuItem(menuItems.indexOf(item))} className="text-xs text-red-400 hover:text-red-300">Remove</button>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -476,12 +473,46 @@ export default function DashboardPage() {
   const renderAnalyticsTab = () => (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
-        <h3 className="text-xl font-semibold text-white mb-6">Analytics & Insights</h3>
+        <h3 className="text-xl font-semibold text-white mb-2">Analytics & Insights</h3>
+        <p className="text-sm text-gray-400 mb-8">Monitor your total QR scans, repeat customer visits, and review conversions.</p>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="p-6 bg-black/40 border border-white/5 rounded-2xl"><p className="text-xs text-gray-400 uppercase mb-1">Total QR Scans</p><h4 className="text-3xl font-bold text-white">{metrics.totalScans}</h4></div>
-          <div className="p-6 bg-black/40 border border-white/5 rounded-2xl"><p className="text-xs text-gray-400 uppercase mb-1">Repeat Scans</p><h4 className="text-3xl font-bold text-white">{metrics.repeatScans}</h4></div>
-          <div className="p-6 bg-black/40 border border-white/5 rounded-2xl"><p className="text-xs text-gray-400 uppercase mb-1">Google Review Clicks</p><h4 className="text-3xl font-bold text-white">{metrics.reviewClicks}</h4></div>
-          <div className="p-6 bg-black/40 border border-white/5 rounded-2xl"><p className="text-xs text-gray-400 uppercase mb-1">Conversion Rate</p><h4 className="text-3xl font-bold text-white">{conversionRate}%</h4></div>
+          <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
+            <p className="text-xs text-gray-400 uppercase mb-1">Total QR Scans</p>
+            <h4 className="text-3xl font-bold text-white">{metrics.totalScans}</h4>
+          </div>
+          <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
+            <p className="text-xs text-gray-400 uppercase mb-1">Repeat Scans (&gt;24h)</p>
+            <h4 className="text-3xl font-bold text-white">{metrics.repeatScans}</h4>
+          </div>
+          <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
+            <p className="text-xs text-gray-400 uppercase mb-1">Google Review Clicks</p>
+            <h4 className="text-3xl font-bold text-white">{metrics.reviewClicks}</h4>
+          </div>
+          <div className="p-6 bg-black/40 border border-white/5 rounded-2xl">
+            <p className="text-xs text-gray-400 uppercase mb-1">Conversion Rate</p>
+            <h4 className="text-3xl font-bold text-white">{conversionRate}%</h4>
+          </div>
+        </div>
+
+        {/* Restored Specific Social Link Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+            <span className="text-xs text-gray-300">Instagram Clicks</span>
+            <span className="font-mono text-cyan-400 font-bold">{metrics.instagramClicks}</span>
+          </div>
+          <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+            <span className="text-xs text-gray-300">YouTube Clicks</span>
+            <span className="font-mono text-cyan-400 font-bold">{metrics.youtubeClicks}</span>
+          </div>
+          <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+            <span className="text-xs text-gray-300">Facebook Clicks</span>
+            <span className="font-mono text-cyan-400 font-bold">{metrics.facebookClicks}</span>
+          </div>
+          <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+            <span className="text-xs text-gray-300">WhatsApp Clicks</span>
+            <span className="font-mono text-cyan-400 font-bold">{metrics.whatsappClicks}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -494,27 +525,27 @@ export default function DashboardPage() {
           <span className="text-xs text-gray-400">Active Scanners: <strong className="text-cyan-400">{qrCodesList.length}/2</strong></span>
         </div>
 
-        {/* Restored Native Square QR with Logo Center */}
+        {/* Standard Matrix QR with Resized Center Logo */}
         <div className="w-72 bg-[#0a0a0f] rounded-3xl border-2 border-cyan-500/40 flex flex-col items-center p-6 mb-6 shadow-2xl relative">
           <h3 className="text-lg font-extrabold tracking-widest text-white mb-1 font-mono">SCAN CIRCLE</h3>
           <p className="text-[11px] font-medium text-cyan-400 mb-4 tracking-wider uppercase">• Scan to Unlock •</p>
-          <div className="w-48 h-48 bg-[#05050a] rounded-2xl border border-white/10 flex items-center justify-center p-3 mb-4 shadow-inner">
+          <div className="w-56 h-56 bg-[#05050a] rounded-2xl border border-white/10 flex items-center justify-center p-3 mb-4 shadow-inner">
             {publicProfileUrl && (
               <QRCodeCanvas 
                 ref={qrRef}
                 value={publicProfileUrl}
-                size={160}
+                size={180}
                 bgColor="#05050a"
                 fgColor={qrColor}
                 level="H"
-                imageSettings={brandLogoUrl ? { src: brandLogoUrl, height: 36, width: 36, excavate: true } : undefined}
+                imageSettings={brandLogoUrl ? { src: brandLogoUrl, height: 50, width: 50, excavate: true } : undefined}
               />
             )}
           </div>
           <h4 className="text-sm font-bold text-white text-center truncate w-full">{businessName}</h4>
         </div>
 
-        <button onClick={downloadBrandedQRCode} className="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:opacity-90">Download QR</button>
+        <button onClick={downloadBrandedQRCode} className="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:opacity-90">Download Branded QR</button>
       </div>
 
       <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
@@ -572,7 +603,7 @@ export default function DashboardPage() {
           <div className="p-6 bg-black/40 border border-white/5 rounded-2xl flex flex-col items-center justify-center">
             <div className="w-60 h-72 bg-[#0a0a0f] rounded-2xl border-2 border-cyan-500/40 flex flex-col items-center p-4 shadow-xl mb-4">
               <span className="text-xs font-mono text-white font-bold tracking-widest">SCAN CIRCLE</span><span className="text-[9px] text-cyan-400 uppercase mb-2">• Scan to Unlock •</span>
-              <div className="w-32 h-32 bg-black rounded-xl border border-white/10 flex items-center justify-center my-auto overflow-hidden"><span className="text-[10px] text-gray-500 font-mono">Your QR</span></div>
+              <div className="w-32 h-32 bg-black rounded-xl border border-white/10 flex items-center justify-center my-auto overflow-hidden"><span className="text-[10px] text-gray-500 font-mono">Your QR Matrix</span></div>
               <span className="text-xs font-bold text-white truncate w-full text-center">{businessName}</span>
             </div>
             <p className="text-xs text-gray-400 font-mono text-center">Premium White Acrylic Stand</p>
@@ -624,10 +655,10 @@ export default function DashboardPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
         <h3 className="text-xl font-semibold text-white mb-2">Subscription & Billing</h3>
-        <p className="text-sm text-gray-400 mb-8">Upgrade your Scan Circle account to Pro by scanning our official payment QR and submitting your UTR.</p>
+        <p className="text-sm font-semibold text-rose-300 italic mb-6">"This will cost around 1 cup of Tea everyday ☕"</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
           <div className="p-6 bg-black/40 border border-white/5 rounded-3xl text-center flex flex-col items-center">
-            <span className="text-xs font-mono text-cyan-400 uppercase tracking-wider mb-4">Scan to Pay via Any UPI App (₹999 / Year)</span>
+            <span className="text-xs font-mono text-cyan-400 uppercase tracking-wider mb-4">Scan to Pay via Any UPI App (₹399 / Month)</span>
             <div className="w-56 h-56 bg-white p-3 rounded-2xl shadow-[0_0_25px_rgba(34,211,238,0.2)] flex items-center justify-center mb-4">
               <img src="/payment-qr.png" alt="Payment QR" className="w-full h-full object-contain" />
             </div>
@@ -712,7 +743,6 @@ export default function DashboardPage() {
                 {deployMessage && <span className="text-xs font-mono text-cyan-400">{deployMessage}</span>}
               </div>
 
-              {/* Profile Dropdown Menu */}
               <div className="relative">
                 <button onClick={() => setProfileDropdownOpen(!profileDropdownOpen)} className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center hover:bg-white/[0.08] hover:border-cyan-500/40">
                   <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
@@ -728,7 +758,6 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          {/* Render Tab Contents using Modularity */}
           {activeTab === 'destinations' && renderSocialLinksTab()}
           {activeTab === 'menu' && renderMenuBuilderTab()}
           {activeTab === 'analytics' && renderAnalyticsTab()}

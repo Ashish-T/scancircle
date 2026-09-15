@@ -13,8 +13,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 const SLIDES = [
   '/slide1.jpg',
   '/slide2.jpg',
-  '/slide3.png',
-  '/slide4.png'
+  '/slide3.jpg'
 ]
 
 export default function HomePage() {
@@ -25,7 +24,7 @@ export default function HomePage() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % SLIDES.length)
-    }, 4000) // Changes slide every 4 seconds
+    }, 4000)
     return () => clearInterval(timer)
   }, [])
 
@@ -41,11 +40,9 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#05050a] text-gray-200 relative overflow-hidden flex flex-col items-center py-8 px-6 selection:bg-cyan-500/30">
       
-      {/* Ambient Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-600/10 blur-[150px] pointer-events-none -z-10"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-600/15 blur-[150px] pointer-events-none -z-10"></div>
 
-      {/* Top Navigation */}
       <nav className="w-full max-w-6xl flex justify-between items-center z-20 mb-8">
         <button onClick={handleAuthRedirect} className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none">
           <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
@@ -62,10 +59,8 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* Hero Section with Slideshow */}
       <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center gap-12 z-10 mt-4 lg:mt-12">
         
-        {/* Left Content */}
         <div className="flex-1 text-center lg:text-left">
           <div className="inline-flex items-center gap-2 py-1 px-4 bg-cyan-500/10 border border-cyan-500/20 rounded-full mb-6">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
@@ -85,24 +80,21 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Right Slideshow */}
-        <div className="flex-1 w-full max-w-md lg:max-w-none relative aspect-[4/3] rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+        {/* Slideshow: strict aspect-video & object-contain prevents cutting sides */}
+        <div className="flex-1 w-full relative aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-[#0a0a0f]">
           {SLIDES.map((slide, idx) => (
             <img 
               key={idx}
               src={slide}
               alt={`Scan Circle Slide ${idx + 1}`}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${idx === currentSlide ? 'opacity-100' : 'opacity-0'}`}
+              className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-1000 ${idx === currentSlide ? 'opacity-100' : 'opacity-0'}`}
               onError={(e) => {
-                // Fallback style if images aren't added to the public folder yet
                 (e.target as HTMLElement).style.display = 'none';
               }}
             />
           ))}
-          {/* Slideshow fallback/overlay gradient */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#05050a]/80 via-transparent to-transparent pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#05050a]/40 via-transparent to-transparent pointer-events-none"></div>
           
-          {/* Slide Indicators */}
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
             {SLIDES.map((_, idx) => (
               <button 
@@ -115,7 +107,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Feature Grid */}
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-3 gap-6 my-20 z-10">
         <div className="p-8 bg-white/[0.02] border border-white/5 rounded-3xl backdrop-blur-xl">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold mb-4 font-mono">01</div>
