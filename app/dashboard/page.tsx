@@ -160,7 +160,6 @@ export default function DashboardPage() {
     const height = canvas.height
     ctx.clearRect(0, 0, width, height)
 
-    // Background
     ctx.fillStyle = '#05050a'
     ctx.fillRect(0, 0, width, height)
 
@@ -168,14 +167,12 @@ export default function DashboardPage() {
     const centerY = height / 2
     const radius = width * 0.42
 
-    // Draw Circular Outer Ring & Target Dots
     ctx.strokeStyle = qrColor
     ctx.lineWidth = 4
     ctx.beginPath()
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
     ctx.stroke()
 
-    // Draw Concentric Data Ring Dots (Artistic Circular QR Encoding Matrix)
     const rings = 12
     const dotColor = qrColor
 
@@ -184,7 +181,6 @@ export default function DashboardPage() {
       const dotsInRing = r * 8
       for (let i = 0; i < dotsInRing; i++) {
         const angle = (i / dotsInRing) * Math.PI * 2
-        // Pseudo-random pseudo-hashing based on user id and position for stable unique pattern
         const seed = (userId.charCodeAt(0) + r + i) % 3
         if (seed !== 0) {
           const x = centerX + Math.cos(angle) * ringRadius
@@ -198,7 +194,6 @@ export default function DashboardPage() {
       }
     }
 
-    // Draw Center Core (Brand Logo or Target Finder)
     ctx.fillStyle = '#0a0a0f'
     ctx.beginPath()
     ctx.arc(centerX, centerY, 32, 0, Math.PI * 2)
@@ -403,30 +398,24 @@ export default function DashboardPage() {
     const ctx = exportCanvas.getContext('2d')
     if (!ctx) return
 
-    // Background
     ctx.fillStyle = '#0a0a0f'
     ctx.fillRect(0, 0, 800, 950)
 
-    // Border Frame
     ctx.strokeStyle = qrColor
     ctx.lineWidth = 6
     ctx.strokeRect(40, 40, 720, 870)
 
-    // Title: SCAN CIRCLE
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 36px monospace'
     ctx.textAlign = 'center'
     ctx.fillText('SCAN CIRCLE', 400, 120)
 
-    // Subtitle: Scan to Unlock
     ctx.fillStyle = qrColor
     ctx.font = '18px sans-serif'
     ctx.fillText('• Scan to Unlock •', 400, 160)
 
-    // Draw Circular QR Canvas
     ctx.drawImage(canvas, 160, 200, 480, 480)
 
-    // Business Name at Bottom
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 32px sans-serif'
     ctx.fillText(businessName, 400, 740)
@@ -554,32 +543,87 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/[0.03] p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-2">Business Name</label>
-              <input 
-                type="text" 
-                value={businessName} 
-                onChange={(e) => { setBusinessName(e.target.value); markAsUnsaved(); }} 
-                className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" 
-              />
+          {/* Social Links Tab (Includes Business Name & Category setup) */}
+          {activeTab === 'destinations' && (
+            <div className="space-y-6">
+              {/* Business Setup Inputs - Only visible on the Social Links tab */}
+              <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/[0.03] p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-2">Business Name</label>
+                  <input 
+                    type="text" 
+                    value={businessName} 
+                    onChange={(e) => { setBusinessName(e.target.value); markAsUnsaved(); }} 
+                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-2">Nature of Business (Category)</label>
+                  <select 
+                    value={businessType} 
+                    onChange={(e) => { setBusinessType(e.target.value); markAsUnsaved(); }} 
+                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 appearance-none"
+                  >
+                    <option value="Cafe & Restaurant">Cafe & Restaurant</option>
+                    <option value="Salon & Spa">Salon & Spa</option>
+                    <option value="Retail & Shopping">Retail & Shopping</option>
+                    <option value="Fitness & Gym">Fitness & Gym</option>
+                    <option value="Professional Services">Professional Services</option>
+                    <option value="General & Other">General & Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
+                <h3 className="text-xl font-semibold text-white mb-2">Social Links & Destinations</h3>
+                <p className="text-sm text-gray-400 mb-8">Configure the links that customers will see when they scan your QR code.</p>
+                
+                <div className="space-y-4">
+                  {destinations.map((dest) => {
+                    const inputConfig = getTargetConfig(dest.title)
+                    return (
+                      <div key={dest.id} className="flex flex-col md:flex-row gap-6 items-start md:items-center p-6 bg-black/40 rounded-2xl border border-white/5">
+                        <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-400 mb-2">Platform Name</label>
+                            <input 
+                              type="text" 
+                              value={dest.title} 
+                              onChange={(e) => handleUpdateDestination(dest.id, 'title', e.target.value)} 
+                              className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" 
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-400 mb-2">{inputConfig.label}</label>
+                            <input 
+                              type={inputConfig.type} 
+                              value={dest.value} 
+                              onChange={(e) => handleUpdateDestination(dest.id, 'value', e.target.value)} 
+                              placeholder={inputConfig.placeholder} 
+                              className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" 
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="pt-2 md:pt-6 flex flex-col items-center">
+                          <label className="block text-[10px] font-mono text-gray-400 uppercase mb-2">{dest.enabled ? 'Active' : 'Disabled'}</label>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={dest.enabled} 
+                              onChange={(e) => handleUpdateDestination(dest.id, 'enabled', e.target.checked)}
+                              className="sr-only peer" 
+                            />
+                            <div className="w-14 h-7 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-400 peer-checked:to-blue-500"></div>
+                          </label>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-2">Nature of Business (Category)</label>
-              <select 
-                value={businessType} 
-                onChange={(e) => { setBusinessType(e.target.value); markAsUnsaved(); }} 
-                className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 appearance-none"
-              >
-                <option value="Cafe & Restaurant">Cafe & Restaurant</option>
-                <option value="Salon & Spa">Salon & Spa</option>
-                <option value="Retail & Shopping">Retail & Shopping</option>
-                <option value="Fitness & Gym">Fitness & Gym</option>
-                <option value="Professional Services">Professional Services</option>
-                <option value="General & Other">General & Other</option>
-              </select>
-            </div>
-          </div>
+          )}
 
           {/* Menu / Rate Card Tab */}
           {activeTab === 'menu' && (
@@ -641,59 +685,24 @@ export default function DashboardPage() {
                     <h4 className="text-3xl font-bold text-white">{conversionRate}%</h4>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* Social Links Tab */}
-          {activeTab === 'destinations' && (
-            <div className="space-y-6">
-              <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
-                <h3 className="text-xl font-semibold text-white mb-2">Social Links & Destinations</h3>
-                <p className="text-sm text-gray-400 mb-8">Configure the links that customers will see when they scan your QR code.</p>
-                
-                <div className="space-y-4">
-                  {destinations.map((dest) => {
-                    const inputConfig = getTargetConfig(dest.title)
-                    return (
-                      <div key={dest.id} className="flex flex-col md:flex-row gap-6 items-start md:items-center p-6 bg-black/40 rounded-2xl border border-white/5">
-                        <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-400 mb-2">Platform Name</label>
-                            <input 
-                              type="text" 
-                              value={dest.title} 
-                              onChange={(e) => handleUpdateDestination(dest.id, 'title', e.target.value)} 
-                              className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" 
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-400 mb-2">{inputConfig.label}</label>
-                            <input 
-                              type={inputConfig.type} 
-                              value={dest.value} 
-                              onChange={(e) => handleUpdateDestination(dest.id, 'value', e.target.value)} 
-                              placeholder={inputConfig.placeholder} 
-                              className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" 
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="pt-2 md:pt-6 flex flex-col items-center">
-                          <label className="block text-[10px] font-mono text-gray-400 uppercase mb-2">{dest.enabled ? 'Active' : 'Disabled'}</label>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={dest.enabled} 
-                              onChange={(e) => handleUpdateDestination(dest.id, 'enabled', e.target.checked)}
-                              className="sr-only peer" 
-                            />
-                            <div className="w-14 h-7 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-400 peer-checked:to-blue-500"></div>
-                          </label>
-                        </div>
-                      </div>
-                    )
-                  })}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+                    <span className="text-xs text-gray-300">Instagram Clicks</span>
+                    <span className="font-mono text-cyan-400 font-bold">{metrics.instagramClicks}</span>
+                  </div>
+                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+                    <span className="text-xs text-gray-300">YouTube Clicks</span>
+                    <span className="font-mono text-cyan-400 font-bold">{metrics.youtubeClicks}</span>
+                  </div>
+                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+                    <span className="text-xs text-gray-300">Facebook Clicks</span>
+                    <span className="font-mono text-cyan-400 font-bold">{metrics.facebookClicks}</span>
+                  </div>
+                  <div className="p-4 bg-black/30 border border-white/5 rounded-2xl flex justify-between items-center">
+                    <span className="text-xs text-gray-300">WhatsApp Clicks</span>
+                    <span className="font-mono text-cyan-400 font-bold">{metrics.whatsappClicks}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -754,44 +763,82 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Subscription & Billing Tab */}
+          {/* Subscription & Billing Tab with Shared Static Payment QR and scancircle@axl */}
           {activeTab === 'subscription' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl shadow-2xl">
                 <h3 className="text-xl font-semibold text-white mb-2">Subscription & Billing</h3>
-                <p className="text-sm text-gray-400 mb-8">Upgrade your Scan Circle account to Pro by scanning our official payment QR and submitting your UTR.</p>
+                <p className="text-sm text-gray-400 mb-8">
+                  Upgrade your Scan Circle account to Pro by scanning our official payment QR code and submitting your UTR reference ID.
+                </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                  <div className="p-6 bg-black/40 border border-white/5 rounded-2xl text-center flex flex-col items-center">
-                    <p className="text-xs font-mono text-cyan-400 uppercase mb-3">Scan to Pay via UPI (₹999 / Year)</p>
-                    <div className="w-48 h-48 bg-white p-3 rounded-2xl shadow-lg flex items-center justify-center mb-4">
-                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=yourupi@oksbi&pn=ScanCircle&am=999&cu=INR" alt="UPI QR" className="w-full h-full object-contain" />
+                  <div className="p-6 bg-black/40 border border-white/5 rounded-3xl text-center flex flex-col items-center">
+                    <span className="text-xs font-mono text-cyan-400 uppercase tracking-wider mb-4">
+                      Scan to Pay via Any UPI App (₹999 / Year)
+                    </span>
+                    
+                    <div className="w-56 h-56 bg-white p-3 rounded-2xl shadow-[0_0_25px_rgba(34,211,238,0.2)] flex items-center justify-center mb-4">
+                      {/* Pulls the static image from your public folder (payment-qr.png) */}
+                      <img 
+                        src="/payment-qr.png" 
+                        alt="Scan Circle Static UPI Payment QR" 
+                        className="w-full h-full object-contain"
+                      />
                     </div>
-                    <p className="text-xs font-mono text-gray-300">UPI ID: <strong className="text-cyan-300">yourupi@oksbi</strong></p>
+
+                    <div className="flex items-center gap-2 mt-2">
+                      <p className="text-xs font-mono text-gray-300">
+                        UPI ID: <strong className="text-cyan-300 font-bold">scancircle@axl</strong>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText('scancircle@axl')
+                          alert('UPI ID copied to clipboard!')
+                        }}
+                        className="py-1 px-2.5 bg-white/10 hover:bg-white/20 text-cyan-400 rounded-lg text-[10px] font-mono transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-gray-500 font-mono mt-2">Supports GPay, PhonePe, Paytm & BHIM</p>
                   </div>
 
                   <div className="space-y-6">
-                    <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl">
-                      <p className="text-xs font-mono text-cyan-300">
-                        Current Tier: <strong className="uppercase text-white">{subscriptionStatus}</strong>
-                      </p>
+                    <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider">Account Tier</p>
+                        <h4 className="text-sm font-bold text-white uppercase mt-0.5">{subscriptionStatus}</h4>
+                      </div>
+                      <span className="text-xs font-mono py-1 px-3 bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/30">
+                        {subscriptionStatus === 'free' ? 'Standard Tier' : 'Pro Member'}
+                      </span>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-2">Enter UPI Transaction ID (UTR)</label>
-                      <input 
-                        type="text" 
-                        value={utrInput}
-                        onChange={(e) => setUtrInput(e.target.value)}
-                        placeholder="e.g. 435678912345"
-                        className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 mb-4"
-                      />
+                    <div className="bg-black/30 p-6 rounded-2xl border border-white/5 space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-2">
+                          Enter 12-Digit UPI Transaction ID (UTR)
+                        </label>
+                        <input 
+                          type="text" 
+                          value={utrInput}
+                          onChange={(e) => setUtrInput(e.target.value)}
+                          placeholder="e.g. 435678912345"
+                          className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 font-mono"
+                        />
+                        <p className="text-[11px] text-gray-500 mt-1.5">
+                          You can find the 12-digit UTR in your payment app transaction history.
+                        </p>
+                      </div>
+
                       <button 
                         onClick={handleSubmitUtr}
                         disabled={submittingUtr}
-                        className="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-xs rounded-xl hover:opacity-90 transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] disabled:opacity-50"
+                        className="w-full py-3.5 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-xs rounded-xl hover:from-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] disabled:opacity-50 cursor-pointer"
                       >
-                        {submittingUtr ? 'Verifying...' : 'Submit Payment Reference'}
+                        {submittingUtr ? 'Submitting...' : 'Submit Payment Reference (UTR)'}
                       </button>
                     </div>
                   </div>
