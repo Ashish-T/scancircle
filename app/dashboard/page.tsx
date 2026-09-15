@@ -35,10 +35,12 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Array<{ name: string; address: string; reviewUrl: string }>>([])
   const [searching, setSearching] = useState(false)
-  const [saving, setSaving] = useState(false)
+  
+  // Button State: 'idle' (Save Changes), 'saving' (Saving...), 'saved' (Saved in Green)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [deployMessage, setDeployMessage] = useState('')
 
-  // Menu / Rate Card Management State
+  // Menu / Rate Card State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
     { name: 'Signature Espresso', price: '$4.50', description: 'Rich dark roast blend', category: 'Drinks' },
     { name: 'Truffle Fries', price: '$6.00', description: 'Crispy fries with truffle oil', category: 'Snacks' }
@@ -79,7 +81,10 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadUserData() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        router.push('/login')
+        return
+      }
 
       setUserId(user.id)
       setUserEmail(user.email || 'user@scancircle.com')
@@ -122,11 +127,18 @@ export default function DashboardPage() {
       }
     }
     loadUserData()
-  }, [])
+  }, [router])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  // Any changes revert the save button back to "Save Changes"
+  const markAsUnsaved = () => {
+    if (saveStatus === 'saved') {
+      setSaveStatus('idle')
+    }
   }
 
   const handleCreateNewQR = () => {
@@ -138,6 +150,7 @@ export default function DashboardPage() {
     const expiresDate = new Date()
     expiresDate.setDate(expiresDate.getDate() + 30)
     setQrCodesList([...qrCodesList, { id: `${userId}-${Date.now()}`, createdAt, expiresAt: expiresDate.toISOString() }])
+    markAsUnsaved()
   }
 
   const handleLogoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -168,6 +181,7 @@ export default function DashboardPage() {
 
       if (publicUrlData) {
         setBrandLogoUrl(publicUrlData.publicUrl)
+        markAsUnsaved()
       }
       setUploadingLogo(false)
     } catch (err) {
@@ -182,10 +196,12 @@ export default function DashboardPage() {
     setNewItemName('')
     setNewItemPrice('')
     setNewItemDesc('')
+    markAsUnsaved()
   }
 
   const handleRemoveMenuItem = (index: number) => {
     setMenuItems(menuItems.filter((_, i) => i !== index))
+    markAsUnsaved()
   }
 
   const handleGooglePlaceSearch = async (e: React.FormEvent) => {
@@ -216,13 +232,14 @@ export default function DashboardPage() {
     setGoogleReviewUrl(place.reviewUrl)
     setSearchResults([])
     setSearchQuery('')
-    setDeployMessage('Google Place synced successfully! Click Save Changes.')
+    markAsUnsaved()
+    setDeployMessage('Google Place synced! Click Save Changes.')
     setTimeout(() => setDeployMessage(''), 4000)
   }
 
   const handleDeployConfig = async () => {
     if (!userId) return
-    setSaving(true)
+    setSaveStatus('saving')
     setDeployMessage('')
 
     const { error } = await supabase.from('profiles').upsert({
@@ -237,12 +254,11 @@ export default function DashboardPage() {
       updated_at: new Date()
     })
 
-    setSaving(false)
     if (error) {
-      setDeployMessage('Failed to save configuration: ' + error.message)
+      setSaveStatus('idle')
+      setDeployMessage('Failed to save: ' + error.message)
     } else {
-      setDeployMessage('Changes saved successfully!')
-      setTimeout(() => setDeployMessage(''), 4000)
+      setSaveStatus('saved') // Changes button text to "Saved" and color to green
     }
   }
 
@@ -270,6 +286,7 @@ export default function DashboardPage() {
 
   const handleUpdateDestination = (id: number, field: string, value: string | boolean) => {
     setDestinations(destinations.map(dest => dest.id === id ? { ...dest, [field]: value } : dest))
+    markAsUnsaved()
   }
 
   const getTargetConfig = (title: string) => {
@@ -318,13 +335,26 @@ export default function DashboardPage() {
 
             <div className="flex items-center gap-4">
               <div className="flex flex-col items-end gap-1">
-                <button 
-                  onClick={handleDeployConfig}
-                  disabled={saving}
-                  className="py-3 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-bold rounded-xl hover:from-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
+                {/* Dynamic Save Changes / Saved Button */}
+                {saveStatus === 'saved' ? (
+                  <button 
+                    onClick={handleDeployConfig}
+                    className="py-3 px-8 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center gap-2 cursor-default"
+                  >
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Saved
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handleDeployConfig}
+                    disabled={saveStatus === 'saving'}
+                    className="py-3 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-bold rounded-xl hover:from-cyan-400 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)] disabled:opacity-50 cursor-pointer"
+                  >
+                    {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
+                  </button>
+                )}
                 {deployMessage && <span className="text-xs font-mono text-cyan-400">{deployMessage}</span>}
               </div>
 
@@ -368,11 +398,20 @@ export default function DashboardPage() {
           <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white/[0.03] p-6 rounded-3xl border border-white/10 backdrop-blur-xl">
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-2">Business Name</label>
-              <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
+              <input 
+                type="text" 
+                value={businessName} 
+                onChange={(e) => { setBusinessName(e.target.value); markAsUnsaved(); }} 
+                className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" 
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-2">Nature of Business (Category)</label>
-              <select value={businessType} onChange={(e) => setBusinessType(e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 appearance-none">
+              <select 
+                value={businessType} 
+                onChange={(e) => { setBusinessType(e.target.value); markAsUnsaved(); }} 
+                className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500 appearance-none"
+              >
                 <option value="Cafe & Restaurant">Cafe & Restaurant</option>
                 <option value="Salon & Spa">Salon & Spa</option>
                 <option value="Retail & Shopping">Retail & Shopping</option>
@@ -481,11 +520,22 @@ export default function DashboardPage() {
                         <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
                             <label className="block text-xs font-semibold text-gray-400 mb-2">Platform Name</label>
-                            <input type="text" value={dest.title} onChange={(e) => handleUpdateDestination(dest.id, 'title', e.target.value)} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
+                            <input 
+                              type="text" 
+                              value={dest.title} 
+                              onChange={(e) => handleUpdateDestination(dest.id, 'title', e.target.value)} 
+                              className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" 
+                            />
                           </div>
                           <div>
                             <label className="block text-xs font-semibold text-gray-400 mb-2">{inputConfig.label}</label>
-                            <input type={inputConfig.type} value={dest.value} onChange={(e) => handleUpdateDestination(dest.id, 'value', e.target.value)} placeholder={inputConfig.placeholder} className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" />
+                            <input 
+                              type={inputConfig.type} 
+                              value={dest.value} 
+                              onChange={(e) => handleUpdateDestination(dest.id, 'value', e.target.value)} 
+                              placeholder={inputConfig.placeholder} 
+                              className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-xl text-sm text-gray-200 focus:outline-none focus:border-cyan-500" 
+                            />
                           </div>
                         </div>
                         
@@ -509,7 +559,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* QR Code Studio with Logo File Uploader */}
+          {/* QR Code Studio */}
           {activeTab === 'qr' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
               <div className="bg-white/[0.03] p-8 rounded-3xl border border-white/10 backdrop-blur-xl flex flex-col items-center justify-center min-h-[450px]">
@@ -563,10 +613,10 @@ export default function DashboardPage() {
                     <div>
                       <label className="block text-xs font-semibold text-gray-300 mb-3">Matrix Color Palette</label>
                       <div className="flex gap-4">
-                        <button onClick={() => setQrColor('white')} className={`w-10 h-10 rounded-xl bg-white transition-all ${qrColor === 'white' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
-                        <button onClick={() => setQrColor('cyan')} className={`w-10 h-10 rounded-xl bg-cyan-400 transition-all ${qrColor === 'cyan' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
-                        <button onClick={() => setQrColor('amber')} className={`w-10 h-10 rounded-xl bg-amber-500 transition-all ${qrColor === 'amber' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
-                        <button onClick={() => setQrColor('emerald')} className={`w-10 h-10 rounded-xl bg-emerald-500 transition-all ${qrColor === 'emerald' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
+                        <button onClick={() => { setQrColor('white'); markAsUnsaved(); }} className={`w-10 h-10 rounded-xl bg-white transition-all ${qrColor === 'white' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
+                        <button onClick={() => { setQrColor('cyan'); markAsUnsaved(); }} className={`w-10 h-10 rounded-xl bg-cyan-400 transition-all ${qrColor === 'cyan' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
+                        <button onClick={() => { setQrColor('amber'); markAsUnsaved(); }} className={`w-10 h-10 rounded-xl bg-amber-500 transition-all ${qrColor === 'amber' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
+                        <button onClick={() => { setQrColor('emerald'); markAsUnsaved(); }} className={`w-10 h-10 rounded-xl bg-emerald-500 transition-all ${qrColor === 'emerald' ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#05050a]' : 'opacity-60'}`}></button>
                       </div>
                     </div>
                   </div>

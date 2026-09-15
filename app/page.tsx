@@ -1,24 +1,55 @@
+'use client'
+
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default function HomePage() {
+  const router = useRouter()
+
+  // Checks session: if logged in -> /dashboard, else -> /login
+  const handleAuthRedirect = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      router.push('/dashboard')
+    } else {
+      router.push('/login')
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#05050a] text-gray-200 relative overflow-hidden flex flex-col items-center justify-between py-12 px-6 selection:bg-cyan-500/30">
       
-      {/* Background Ambient Glows */}
+      {/* Ambient Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-cyan-600/10 blur-[150px] pointer-events-none -z-10"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-600/15 blur-[150px] pointer-events-none -z-10"></div>
 
       {/* Top Navigation */}
       <nav className="w-full max-w-6xl flex justify-between items-center z-10 mb-8">
-        <div className="flex items-center gap-2">
+        {/* 1. Brand Logo: Checks Auth */}
+        <button 
+          onClick={handleAuthRedirect} 
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none"
+        >
           <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
           <span className="text-sm font-bold tracking-wider text-white font-mono uppercase">Scan Circle</span>
-        </div>
+        </button>
+
         <div className="flex items-center gap-4">
-          <Link href="/login" className="text-xs font-semibold text-gray-300 hover:text-white transition-colors">Sign In</Link>
-          <Link href="/dashboard" className="py-2 px-5 bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-bold rounded-xl transition-all">
-            Get Started Free
+          <Link href="/login" className="text-xs font-semibold text-gray-300 hover:text-white transition-colors">
+            Sign In
           </Link>
+          {/* 2. Top-Right "Get Started Free": Checks Auth */}
+          <button 
+            onClick={handleAuthRedirect} 
+            className="py-2 px-5 bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-bold rounded-xl transition-all"
+          >
+            Get Started Free
+          </button>
         </div>
       </nav>
 
@@ -37,17 +68,18 @@ export default function HomePage() {
           Instantly route customers from a single scanned QR code to your social media profiles, digital menus, rate cards, and Google Reviews with built-in rating prompts.
         </p>
 
+        {/* 3. Hero CTA: Checks Auth */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link 
-            href="/dashboard" 
-            className="w-full sm:w-auto py-4 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-2xl hover:opacity-90 transition-all shadow-[0_0_30px_rgba(34,211,238,0.3)]"
+          <button 
+            onClick={handleAuthRedirect} 
+            className="w-full sm:w-auto py-4 px-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-2xl hover:opacity-90 transition-all shadow-[0_0_30px_rgba(34,211,238,0.3)] cursor-pointer"
           >
             Create Your Business QR Now →
-          </Link>
+          </button>
         </div>
       </div>
 
-      {/* Interactive Live Scanner Preview Animation */}
+      {/* Live Interactive Scan Preview */}
       <div className="w-full max-w-md my-8 bg-white/[0.03] border border-white/10 p-6 rounded-3xl backdrop-blur-xl shadow-2xl relative z-10 text-center">
         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-cyan-500/20 border border-cyan-500/40 px-3 py-0.5 rounded-full text-[10px] font-mono text-cyan-300 uppercase">
           Live Customer Scan Preview
