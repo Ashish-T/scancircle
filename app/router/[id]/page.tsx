@@ -28,7 +28,7 @@ interface MenuItem {
   imageUrl?: string
 }
 
-// Industry-Specific Themes configuration (Fixed TypeScript type)
+// Industry-Specific Themes configuration
 const THEMES: Record<string, { bg: string, card: string, accentText: string, accentBg: string, border: string, glow: string }> = {
   'Cafe & Restaurant': { bg: 'bg-[#1c1917]', card: 'bg-[#292524]', accentText: 'text-amber-400', accentBg: 'bg-amber-500', border: 'border-amber-500/30', glow: 'bg-amber-600/10' },
   'Salon & Spa': { bg: 'bg-[#0f1115]', card: 'bg-[#181a20]', accentText: 'text-yellow-500', accentBg: 'bg-yellow-500', border: 'border-yellow-500/30', glow: 'bg-yellow-600/10' },
@@ -44,7 +44,10 @@ export default function RouterProfilePage({ params }: PageProps) {
   const [businessType, setBusinessType] = useState('Cafe & Restaurant')
   const [googleReviewUrl, setGoogleReviewUrl] = useState('')
   const [brandLogo, setBrandLogo] = useState('')
-  const [subscriptionStatus, setSubscriptionStatus] = useState('active')
+  
+  // Expiry specific states
+  const [isExpired, setIsExpired] = useState(false)
+  
   const [links, setLinks] = useState<LinkItem[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
   const [showMenuModal, setShowMenuModal] = useState(false)
@@ -111,9 +114,30 @@ export default function RouterProfilePage({ params }: PageProps) {
         if (profile.business_type) setBusinessType(profile.business_type)
         if (profile.google_review_url) setGoogleReviewUrl(profile.google_review_url)
         if (profile.brand_logo) setBrandLogo(profile.brand_logo)
-        if (profile.subscription_status) setSubscriptionStatus(profile.subscription_status)
         if (profile.links) setLinks(profile.links)
         if (profile.business_menu) setMenuItems(profile.business_menu)
+
+        // BULLETPROOF EXPIRY LOGIC
+        let expiredStatus = false;
+        
+        // Check 1: Manual toggle by admin
+        if (profile.subscription_status?.toLowerCase() === 'expired') {
+          expiredStatus = true;
+        } 
+        // Check 2: Actual expiry date has passed
+        else if (profile.subscription_expiry) {
+          const expiryDate = new Date(profile.subscription_expiry);
+          const now = new Date();
+          // Reset times so we compare exact days
+          expiryDate.setHours(0,0,0,0);
+          now.setHours(0,0,0,0);
+          
+          if (expiryDate < now) {
+            expiredStatus = true;
+          }
+        }
+        
+        setIsExpired(expiredStatus);
       }
       setLoading(false)
 
@@ -235,7 +259,7 @@ export default function RouterProfilePage({ params }: PageProps) {
   }
 
   // --- 🔴 THE EXPIRED SUBSCRIPTION SCREEN 🔴 ---
-  if (subscriptionStatus === 'expired') {
+  if (isExpired) {
     return (
       <div className="min-h-screen bg-[#0B0F19] text-white flex flex-col items-center justify-center p-6 text-center">
         <div className="w-20 h-20 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center mb-8 shadow-[0_0_30px_rgba(99,102,241,0.2)]">
@@ -414,7 +438,6 @@ export default function RouterProfilePage({ params }: PageProps) {
             <div className="space-y-3 overflow-y-auto pr-1 flex-1">
               {filteredMenuItems.map((item, idx) => (
                 <div key={idx} className={`p-4 ${theme.card} border ${theme.border} rounded-2xl flex gap-4 items-start`}>
-                  {/* Newly Added Image Support for Menu Items */}
                   {item.imageUrl && (
                     <img src={item.imageUrl} alt={item.name} className="w-16 h-16 rounded-xl object-cover bg-black/50 shrink-0" />
                   )}

@@ -14,10 +14,11 @@ interface BusinessProfile {
   id: string
   email: string
   business_name: string
-  business_type: 'Cafe' | 'Restaurant' | 'Salon' | 'Womens Parlour'
-  subscription_status: 'active' | 'expired' | 'pending'
+  business_type: string
+  subscription_status: string
   subscription_expiry: string
   theme_id: string
+  google_review_url: string
   menu_items: Array<{ name: string; price: string; description: string; imageUrl: string; category: string }>
   links: Array<{ title: string; value: string; enabled: boolean }>
 }
@@ -47,8 +48,7 @@ export default function AdminPanelPage() {
         return
       }
 
-      // Security check: Verify if user is admin (you can check against your email or an admin role)
-      // For demonstration, we allow getashish26@gmail.com or check an admin flag
+      // Security check
       if (user.email !== 'getashish26@gmail.com') {
         alert('Access Denied: Admin privileges required.')
         router.push('/dashboard')
@@ -79,6 +79,7 @@ export default function AdminPanelPage() {
       business_type: selectedBusiness.business_type,
       subscription_status: selectedBusiness.subscription_status,
       subscription_expiry: selectedBusiness.subscription_expiry,
+      google_review_url: selectedBusiness.google_review_url,
       theme_id: selectedBusiness.theme_id,
       menu_items: selectedBusiness.menu_items,
       links: selectedBusiness.links
@@ -95,7 +96,7 @@ export default function AdminPanelPage() {
   const handleAddMenuItem = () => {
     if (!selectedBusiness || !newItemName || !newItemPrice) return
     const updatedMenu = [
-      ...selectedBusiness.menu_items,
+      ...(selectedBusiness.menu_items || []),
       { name: newItemName, price: newItemPrice, description: newItemDesc, imageUrl: newItemImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c', category: newItemCat }
     ]
     setSelectedBusiness({ ...selectedBusiness, menu_items: updatedMenu })
@@ -122,16 +123,13 @@ export default function AdminPanelPage() {
     const ctx = exportCanvas.getContext('2d')
     if (!ctx) return
 
-    // Background
     ctx.fillStyle = '#0B0F19'
     ctx.fillRect(0, 0, 800, 1000)
 
-    // Border
     ctx.strokeStyle = '#818cf8'
     ctx.lineWidth = 6
     ctx.strokeRect(40, 40, 720, 920)
 
-    // Header
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 36px monospace'
     ctx.textAlign = 'center'
@@ -141,18 +139,15 @@ export default function AdminPanelPage() {
     ctx.font = 'bold 20px sans-serif'
     ctx.fillText('Scan to Unlock Exciting Features', 400, 155)
 
-    // QR Image
     const img = new Image()
     img.src = qrImage
     img.onload = () => {
       ctx.drawImage(img, 175, 190, 450, 450)
 
-      // Business Name
       ctx.fillStyle = '#ffffff'
       ctx.font = 'bold 34px sans-serif'
       ctx.fillText(selectedBusiness.business_name, 400, 700)
 
-      // Social Icons Badges (Instagram, Google Reviews, WhatsApp, YouTube)
       ctx.fillStyle = '#1e293b'
       ctx.fillRect(120, 750, 560, 80)
       
@@ -198,7 +193,7 @@ export default function AdminPanelPage() {
             📁 Business Directory
           </button>
           <button onClick={() => setActiveTab('customizer')} className={`w-full text-left px-4 py-3 rounded-xl transition-all ${activeTab === 'customizer' ? 'bg-indigo-600 text-white font-bold shadow-lg' : 'text-slate-400 hover:bg-white/5'}`}>
-            🎨 Theme & Menu Editor
+            🎨 Client Profile Manager
           </button>
           <button onClick={() => setActiveTab('qrgenerator')} className={`w-full text-left px-4 py-3 rounded-xl transition-all ${activeTab === 'qrgenerator' ? 'bg-indigo-600 text-white font-bold shadow-lg' : 'text-slate-400 hover:bg-white/5'}`}>
             🖨️ Branded QR Generator
@@ -226,7 +221,7 @@ export default function AdminPanelPage() {
             )}
           </header>
 
-          {/* TAB 1: BUSINESS DIRECTORY & SUBSCRIPTIONS */}
+          {/* TAB 1: BUSINESS DIRECTORY */}
           {activeTab === 'directory' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="bg-[#131B2E] border border-slate-700/60 rounded-3xl p-8 shadow-2xl">
@@ -248,7 +243,7 @@ export default function AdminPanelPage() {
                           <td className="py-4 px-4 font-bold text-white">{biz.business_name}</td>
                           <td className="py-4 px-4 font-mono text-indigo-400">{biz.business_type}</td>
                           <td className="py-4 px-4">
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-mono uppercase ${biz.subscription_status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-mono uppercase ${biz.subscription_status === 'active' || biz.subscription_status === 'pro_pending_verification' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
                               {biz.subscription_status}
                             </span>
                           </td>
@@ -269,31 +264,77 @@ export default function AdminPanelPage() {
             </div>
           )}
 
-          {/* TAB 2: THEME & MENU EDITOR */}
+          {/* TAB 2: CLIENT PROFILE MANAGER */}
           {activeTab === 'customizer' && selectedBusiness && (
             <div className="space-y-8 animate-in fade-in duration-300">
               
               {/* Theme & Expiry Control Box */}
-              <div className="bg-[#131B2E] border border-slate-700/60 rounded-3xl p-8 shadow-2xl grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-[#131B2E] border border-slate-700/60 rounded-3xl p-8 shadow-2xl grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
                   <label className="block text-xs font-mono text-slate-400 uppercase mb-2">Business Name</label>
-                  <input type="text" value={selectedBusiness.business_name} onChange={(e) => setSelectedBusiness({ ...selectedBusiness, business_name: e.target.value })} className="w-full px-4 py-3 bg-[#0f172a] border border-slate-700 rounded-xl text-sm text-white outline-none" />
+                  <input type="text" value={selectedBusiness.business_name || ''} onChange={(e) => setSelectedBusiness({ ...selectedBusiness, business_name: e.target.value })} className="w-full px-4 py-3 bg-[#0f172a] border border-slate-700 rounded-xl text-sm text-white outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-mono text-slate-400 uppercase mb-2">Industry Theme</label>
-                  <select value={selectedBusiness.business_type} onChange={(e) => setSelectedBusiness({ ...selectedBusiness, business_type: e.target.value as any })} className="w-full px-4 py-3 bg-[#0f172a] border border-slate-700 rounded-xl text-sm text-white outline-none font-mono">
-                    <option value="Cafe">Cafe (Warm Amber Palette)</option>
-                    <option value="Restaurant">Restaurant (Vibrant Red Palette)</option>
-                    <option value="Salon">Salon (Deep Obsidian & Gold)</option>
-                    <option value="Womens Parlour">Women's Parlour (Soft Rose & Pastel)</option>
+                  <select value={selectedBusiness.business_type || 'Cafe & Restaurant'} onChange={(e) => setSelectedBusiness({ ...selectedBusiness, business_type: e.target.value })} className="w-full px-4 py-3 bg-[#0f172a] border border-slate-700 rounded-xl text-sm text-white outline-none font-mono">
+                    <option value="Cafe & Restaurant">Cafe & Restaurant</option>
+                    <option value="Salon & Spa">Salon & Spa</option>
+                    <option value="Retail & Shopping">Retail & Shopping</option>
+                    <option value="Fitness & Gym">Fitness & Gym</option>
+                    <option value="Womens Parlour">Women's Parlour</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-mono text-slate-400 uppercase mb-2">Subscription Status</label>
-                  <select value={selectedBusiness.subscription_status} onChange={(e) => setSelectedBusiness({ ...selectedBusiness, subscription_status: e.target.value as any })} className="w-full px-4 py-3 bg-[#0f172a] border border-slate-700 rounded-xl text-sm text-white outline-none font-mono">
-                    <option value="active">Active (Full Access)</option>
-                    <option value="expired">Expired (Shows "Get the good thing done")</option>
+                  <select value={selectedBusiness.subscription_status || 'expired'} onChange={(e) => setSelectedBusiness({ ...selectedBusiness, subscription_status: e.target.value })} className="w-full px-4 py-3 bg-[#0f172a] border border-slate-700 rounded-xl text-sm text-white outline-none font-mono">
+                    <option value="active">Active</option>
+                    <option value="free">Free Trial</option>
+                    <option value="pro_pending_verification">Pending Verification</option>
+                    <option value="expired">Expired</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-mono text-slate-400 uppercase mb-2">Expiry Date</label>
+                  <input 
+                    type="date" 
+                    value={selectedBusiness.subscription_expiry ? new Date(selectedBusiness.subscription_expiry).toISOString().split('T')[0] : ''} 
+                    onChange={(e) => setSelectedBusiness({ ...selectedBusiness, subscription_expiry: new Date(e.target.value).toISOString() })} 
+                    className="w-full px-4 py-3 bg-[#0f172a] border border-slate-700 rounded-xl text-sm text-white outline-none font-mono" 
+                  />
+                </div>
+              </div>
+
+              {/* Advanced Controls: Social Links & Reviews */}
+              <div className="bg-[#131B2E] border border-slate-700/60 rounded-3xl p-8 shadow-2xl">
+                <h3 className="text-xl font-bold text-white mb-2">Social Destinations & Google Reviews</h3>
+                <p className="text-sm text-slate-400 mb-6 font-mono">Configure the client's routing logic directly.</p>
+
+                <div className="mb-6">
+                  <label className="block text-xs font-mono text-slate-400 uppercase mb-2">Google Review URL</label>
+                  <input type="url" value={selectedBusiness.google_review_url || ''} onChange={(e) => setSelectedBusiness({...selectedBusiness, google_review_url: e.target.value})} className="w-full px-4 py-3 bg-[#0f172a] border border-slate-700 rounded-xl text-sm text-white outline-none" />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedBusiness.links?.map((link, idx) => (
+                    <div key={idx} className="bg-[#0f172a] p-4 rounded-xl border border-slate-800 flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-white">{link.title}</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" checked={link.enabled} onChange={(e) => {
+                            const newLinks = [...selectedBusiness.links];
+                            newLinks[idx].enabled = e.target.checked;
+                            setSelectedBusiness({...selectedBusiness, links: newLinks});
+                          }} className="sr-only peer" />
+                          <div className="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                        </label>
+                      </div>
+                      <input type="text" placeholder="URL or Handle" value={link.value} onChange={(e) => {
+                         const newLinks = [...selectedBusiness.links];
+                         newLinks[idx].value = e.target.value;
+                         setSelectedBusiness({...selectedBusiness, links: newLinks});
+                      }} className="w-full px-3 py-2 bg-[#131B2E] border border-slate-700 rounded-lg text-xs text-white outline-none" />
+                    </div>
+                  ))}
                 </div>
               </div>
 
