@@ -25,17 +25,17 @@ interface MenuItem {
   price: string
   description?: string
   category: string
-  imageUrl?: string // Added Image URL support
+  imageUrl?: string
 }
 
-// Industry-Specific Themes configuration
-const THEMES: Record<string, { bg: string, card: string, accentText: string, border: string, glow: string }> = {
-  'Cafe & Restaurant': { bg: 'bg-[#1c1917]', card: 'bg-[#292524]', accentText: 'text-amber-400', border: 'border-amber-500/30', glow: 'bg-amber-600/10' },
-  'Salon & Spa': { bg: 'bg-[#0f1115]', card: 'bg-[#181a20]', accentText: 'text-yellow-500', border: 'border-yellow-500/30', glow: 'bg-yellow-600/10' },
-  'Womens Parlour': { bg: 'bg-[#1f1619]', card: 'bg-[#2e1f25]', accentText: 'text-rose-400', border: 'border-rose-400/30', glow: 'bg-rose-600/10' },
-  'Retail & Shopping': { bg: 'bg-[#0f172a]', card: 'bg-[#1e293b]', accentText: 'text-blue-400', border: 'border-blue-500/30', glow: 'bg-blue-600/10' },
-  'Fitness & Gym': { bg: 'bg-[#064e3b]', card: 'bg-[#065f46]', accentText: 'text-emerald-400', border: 'border-emerald-500/30', glow: 'bg-emerald-600/10' },
-  'Default': { bg: 'bg-[#05050a]', card: 'bg-[#0a0a0f]', accentText: 'text-cyan-400', border: 'border-cyan-500/30', glow: 'bg-cyan-600/10' }
+// Industry-Specific Themes configuration (Fixed TypeScript type)
+const THEMES: Record<string, { bg: string, card: string, accentText: string, accentBg: string, border: string, glow: string }> = {
+  'Cafe & Restaurant': { bg: 'bg-[#1c1917]', card: 'bg-[#292524]', accentText: 'text-amber-400', accentBg: 'bg-amber-500', border: 'border-amber-500/30', glow: 'bg-amber-600/10' },
+  'Salon & Spa': { bg: 'bg-[#0f1115]', card: 'bg-[#181a20]', accentText: 'text-yellow-500', accentBg: 'bg-yellow-500', border: 'border-yellow-500/30', glow: 'bg-yellow-600/10' },
+  'Womens Parlour': { bg: 'bg-[#1f1619]', card: 'bg-[#2e1f25]', accentText: 'text-rose-400', accentBg: 'bg-rose-500', border: 'border-rose-400/30', glow: 'bg-rose-600/10' },
+  'Retail & Shopping': { bg: 'bg-[#0f172a]', card: 'bg-[#1e293b]', accentText: 'text-blue-400', accentBg: 'bg-blue-500', border: 'border-blue-500/30', glow: 'bg-blue-600/10' },
+  'Fitness & Gym': { bg: 'bg-[#064e3b]', card: 'bg-[#065f46]', accentText: 'text-emerald-400', accentBg: 'bg-emerald-500', border: 'border-emerald-500/30', glow: 'bg-emerald-600/10' },
+  'Default': { bg: 'bg-[#05050a]', card: 'bg-[#0a0a0f]', accentText: 'text-cyan-400', accentBg: 'bg-cyan-500', border: 'border-cyan-500/30', glow: 'bg-cyan-600/10' }
 }
 
 export default function RouterProfilePage({ params }: PageProps) {
