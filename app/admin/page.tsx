@@ -19,7 +19,6 @@ interface BusinessProfile {
   subscription_expiry: string
   theme_id: string
   google_review_url: string
-  // Changed from menu_items to business_menu to match your database schema
   business_menu: Array<{ name: string; price: string; description: string; imageUrl: string; category: string }>
   links: Array<{ title: string; value: string; enabled: boolean }>
 }
@@ -82,7 +81,7 @@ export default function AdminPanelPage() {
       subscription_expiry: selectedBusiness.subscription_expiry,
       google_review_url: selectedBusiness.google_review_url,
       theme_id: selectedBusiness.theme_id,
-      business_menu: selectedBusiness.business_menu, // Fixed column name
+      business_menu: selectedBusiness.business_menu,
       links: selectedBusiness.links
     }).eq('id', selectedBusiness.id)
 
@@ -149,17 +148,30 @@ export default function AdminPanelPage() {
       ctx.font = 'bold 34px sans-serif'
       ctx.fillText(selectedBusiness.business_name, 400, 700)
 
+      // Social Icons Badges Box
       ctx.fillStyle = '#1e293b'
-      ctx.fillRect(120, 750, 560, 80)
+      ctx.fillRect(80, 740, 640, 100)
       
       ctx.fillStyle = '#38bdf8'
-      ctx.font = 'bold 14px monospace'
-      ctx.fillText('[ 📸 Instagram ]  [ ⭐ Google Reviews ]', 400, 780)
-      ctx.fillText('[ 💬 WhatsApp ]  [ 🎬 YouTube ]', 400, 810)
+      ctx.font = 'bold 16px sans-serif'
+      ctx.textAlign = 'center'
+      
+      // Top Row
+      ctx.fillText('[ 📸 Instagram ]     [ ★★★★★ Google Reviews ]', 400, 780)
+
+      // Check if YouTube is enabled
+      const hasYouTube = selectedBusiness.links?.some(l => l.title.toLowerCase().includes('youtube') && l.enabled);
+      
+      // Bottom Row
+      if (hasYouTube) {
+        ctx.fillText('[ 💬 WhatsApp ]     [ 🎬 YouTube ]', 400, 815)
+      } else {
+        ctx.fillText('[ 💬 WhatsApp ]', 400, 815)
+      }
 
       ctx.fillStyle = '#94a3b8'
       ctx.font = '14px monospace'
-      ctx.fillText('Powered by Scan Circle • Kolkata, India', 400, 900)
+      ctx.fillText('Powered by Scan Circle • Kolkata, India', 400, 910)
 
       const link = document.createElement('a')
       link.download = `${selectedBusiness.business_name.replace(/\s+/g, '_')}_QR_Card.png`
@@ -379,25 +391,56 @@ export default function AdminPanelPage() {
               <h3 className="text-xl font-bold text-white mb-2">Branded QR Card Generator</h3>
               <p className="text-sm text-slate-400 mb-8 font-mono text-center">Generates professional QR card including Business Name, "Scan to Unlock Exciting Features", and Social Badges.</p>
 
-              <div className="w-72 bg-[#0f172a] rounded-3xl border-2 border-indigo-500/50 flex flex-col items-center p-6 mb-8 shadow-2xl text-center">
-                <h4 className="text-lg font-black tracking-widest text-white font-mono mb-1">SCAN CIRCLE</h4>
-                <p className="text-xs font-bold text-cyan-400 mb-4 font-sans">Scan to Unlock Exciting Features</p>
+              <div className="w-80 bg-[#0f172a] rounded-3xl border-2 border-indigo-500/50 flex flex-col items-center p-6 mb-8 shadow-2xl text-center">
+                <h4 className="text-xl font-black tracking-widest text-white font-mono mb-1">SCAN CIRCLE</h4>
+                <p className="text-[11px] font-bold text-cyan-400 mb-5 font-sans">Scan to Unlock Exciting Features</p>
                 
-                <div className="w-52 h-52 bg-white p-2 rounded-2xl flex items-center justify-center mb-4">
+                <div className="w-56 h-56 bg-white p-3 rounded-2xl flex items-center justify-center mb-5">
                   <QRCodeCanvas 
                     ref={qrRef}
                     value={`https://scancircle.onrender.com/router/${selectedBusiness.id}`}
-                    size={180}
+                    size={200}
                     bgColor="#ffffff"
                     fgColor="#0f172a"
                     level="H"
                   />
                 </div>
 
-                <h5 className="text-base font-bold text-white truncate w-full">{selectedBusiness.business_name}</h5>
-                <div className="mt-3 py-1.5 px-3 bg-slate-800 rounded-xl text-[10px] font-mono text-slate-300 flex gap-2 justify-center">
-                  <span>📸 Insta</span> • <span>⭐ Google</span> • <span>💬 WhatsApp</span>
+                <h5 className="text-base font-bold text-white truncate w-full mb-2">{selectedBusiness.business_name}</h5>
+                
+                {/* DYNAMIC ICONS & LABELS */}
+                <div className="w-full mt-2 py-3 px-4 bg-slate-800 rounded-xl text-[10px] font-sans text-slate-200 flex flex-wrap gap-4 justify-center items-center">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[14px]">📸</span>
+                    <span className="font-semibold">Instagram</span>
+                  </div>
+                  
+                  <div className="w-[1px] h-6 bg-slate-600"></div>
+                  
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-amber-400 text-[10px] tracking-[0.2em] leading-none mt-1">★★★★★</span>
+                    <span className="font-semibold mt-0.5">Google Reviews</span>
+                  </div>
+                  
+                  <div className="w-[1px] h-6 bg-slate-600"></div>
+                  
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-[14px]">💬</span>
+                    <span className="font-semibold">WhatsApp</span>
+                  </div>
+
+                  {/* Render YouTube dynamically if enabled */}
+                  {selectedBusiness.links?.some(l => l.title.toLowerCase().includes('youtube') && l.enabled) && (
+                    <>
+                      <div className="w-[1px] h-6 bg-slate-600"></div>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-[14px]">🎬</span>
+                        <span className="font-semibold">YouTube</span>
+                      </div>
+                    </>
+                  )}
                 </div>
+
               </div>
 
               <button onClick={downloadAdminQR} className="py-4 px-8 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white font-bold rounded-2xl shadow-xl hover:opacity-90 font-mono tracking-wider">
