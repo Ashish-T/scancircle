@@ -19,7 +19,8 @@ interface BusinessProfile {
   subscription_expiry: string
   theme_id: string
   google_review_url: string
-  menu_items: Array<{ name: string; price: string; description: string; imageUrl: string; category: string }>
+  // Changed from menu_items to business_menu to match your database schema
+  business_menu: Array<{ name: string; price: string; description: string; imageUrl: string; category: string }>
   links: Array<{ title: string; value: string; enabled: boolean }>
 }
 
@@ -81,7 +82,7 @@ export default function AdminPanelPage() {
       subscription_expiry: selectedBusiness.subscription_expiry,
       google_review_url: selectedBusiness.google_review_url,
       theme_id: selectedBusiness.theme_id,
-      menu_items: selectedBusiness.menu_items,
+      business_menu: selectedBusiness.business_menu, // Fixed column name
       links: selectedBusiness.links
     }).eq('id', selectedBusiness.id)
 
@@ -96,10 +97,10 @@ export default function AdminPanelPage() {
   const handleAddMenuItem = () => {
     if (!selectedBusiness || !newItemName || !newItemPrice) return
     const updatedMenu = [
-      ...(selectedBusiness.menu_items || []),
+      ...(selectedBusiness.business_menu || []),
       { name: newItemName, price: newItemPrice, description: newItemDesc, imageUrl: newItemImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c', category: newItemCat }
     ]
-    setSelectedBusiness({ ...selectedBusiness, menu_items: updatedMenu })
+    setSelectedBusiness({ ...selectedBusiness, business_menu: updatedMenu })
     setNewItemName('')
     setNewItemPrice('')
     setNewItemDesc('')
@@ -108,8 +109,8 @@ export default function AdminPanelPage() {
 
   const handleRemoveMenuItem = (index: number) => {
     if (!selectedBusiness) return
-    const updatedMenu = selectedBusiness.menu_items.filter((_, i) => i !== index)
-    setSelectedBusiness({ ...selectedBusiness, menu_items: updatedMenu })
+    const updatedMenu = (selectedBusiness.business_menu || []).filter((_, i) => i !== index)
+    setSelectedBusiness({ ...selectedBusiness, business_menu: updatedMenu })
   }
 
   const downloadAdminQR = () => {
@@ -244,7 +245,7 @@ export default function AdminPanelPage() {
                           <td className="py-4 px-4 font-mono text-indigo-400">{biz.business_type}</td>
                           <td className="py-4 px-4">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-mono uppercase ${biz.subscription_status === 'active' || biz.subscription_status === 'pro_pending_verification' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
-                              {biz.subscription_status}
+                              {biz.subscription_status || 'free'}
                             </span>
                           </td>
                           <td className="py-4 px-4 font-mono text-xs text-slate-300">
@@ -352,7 +353,7 @@ export default function AdminPanelPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {selectedBusiness.menu_items?.map((item, idx) => (
+                  {(selectedBusiness.business_menu || []).map((item, idx) => (
                     <div key={idx} className="bg-[#0f172a] border border-slate-800 rounded-2xl p-4 flex gap-4 items-center relative group">
                       <img src={item.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c'} alt={item.name} className="w-16 h-16 rounded-xl object-cover" />
                       <div className="flex-1">
